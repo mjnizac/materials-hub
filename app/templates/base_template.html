@@ -109,6 +109,13 @@ chico sundermann">
                                 class="align-middle">My datasets</span>
                         </a>
                     </li>
+                    <li class="sidebar-item {{ 'active' if request.endpoint == 'dataset.view_top_global' else '' }}">
+                        <a class="sidebar-link" href="{{ url_for('dataset.view_top_global') }}">
+                            <i class="align-middle" data-feather="star"></i>
+                            <span class="align-middle">Top datasets</span>
+                        </a>
+                    </li>
+
 
                     <li class="sidebar-header">
                         Options

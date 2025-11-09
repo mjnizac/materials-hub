@@ -270,3 +270,29 @@ def get_unsynchronized_dataset(dataset_id):
         abort(404)
 
     return render_template("dataset/view_dataset.html", dataset=dataset)
+
+
+@dataset_bp.route("/datasets/top", methods=["GET"])
+@login_required
+def view_top_global():
+    metric = request.args.get("metric", "downloads").lower()  # 'downloads' | 'views'
+    days = request.args.get("days", 30, type=int)             # 7 | 30 (por defecto 30)
+    limit = request.args.get("limit", 10, type=int)           # 5|10|20...
+
+    # sanea valores
+    if metric not in {"downloads", "views"}:
+        metric = "downloads"
+    if days not in {7, 30}:
+        days = 30
+    if not limit or limit < 1:
+        limit = 10
+
+    datasets = dataset_service.get_top_global(metric=metric, limit=limit, days=days)
+
+    return render_template(
+        "dataset/top_global.html",
+        datasets=datasets,
+        metric=metric,
+        days=days,
+        limit=limit,
+    )

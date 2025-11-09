@@ -1,0 +1,103 @@
+{% extends "base_template.html" %}
+{% block title %}Top Datasets{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-3">
+  Top {{ 'most viewed' if metric == 'views' else 'most downloaded' }} datasets
+</h1>
+
+<form id="filterForm" method="get" action="{{ url_for('dataset.view_top_global') }}" class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+
+  {# Selector de métrica (views/downloads) #}
+  <div class="btn-group" role="group" aria-label="Metric selector">
+    <button type="submit" name="metric" value="downloads"
+            class="btn btn-outline-primary {% if metric == 'downloads' %}active{% endif %}">
+      Most downloaded
+    </button>
+    <button type="submit" name="metric" value="views"
+            class="btn btn-outline-primary {% if metric == 'views' %}active{% endif %}">
+      Most viewed
+    </button>
+  </div>
+
+  {# Selector de rango temporal (7 / 30 días) #}
+  <div class="btn-group" role="group" aria-label="Days range">
+    <button type="submit" name="days" value="7"
+            class="btn btn-outline-secondary {% if days == 7 %}active{% endif %}">
+      Last 7 days
+    </button>
+    <button type="submit" name="days" value="30"
+            class="btn btn-outline-secondary {% if days == 30 %}active{% endif %}">
+      Last 30 days
+    </button>
+  </div>
+
+  {# Selector de Top N con botones + y - #}
+  <div class="input-group" style="width: 160px;">
+    <input type="number" class="form-control text-center" name="limit" id="limitInput"
+           value="{{ limit }}" min="1" style="width: 70px;">
+  </div>
+
+  {# Mantener métricas y días actuales #}
+  <input type="hidden" name="metric" value="{{ metric }}">
+  <input type="hidden" name="days" value="{{ days }}">
+</form>
+
+<script>
+  const form = document.getElementById("filterForm");
+  const limitInput = document.getElementById("limitInput");
+  const decreaseBtn = document.getElementById("decreaseBtn");
+  const increaseBtn = document.getElementById("increaseBtn");
+
+  decreaseBtn.addEventListener("click", () => {
+    let val = parseInt(limitInput.value) || 1;
+    if (val > 1) limitInput.value = val - 1;
+    form.submit();
+  });
+
+  increaseBtn.addEventListener("click", () => {
+    let val = parseInt(limitInput.value) || 1;
+    limitInput.value = val + 1;
+    form.submit();
+  });
+</script>
+
+<div class="col-12">
+  <div class="card">
+    <div class="card-body">
+      {% if datasets %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>{{ 'Views' if metric == 'views' else 'Downloads' }}</th>
+            <th>Options</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in datasets %}
+          <tr>
+            <td>{{ d.title }}</td>
+            <td>{{ d.views if metric == 'views' else d.downloads }}</td>
+            <td>
+              {% if metric == 'views' %}
+                <a href="{{ url_for('dataset.subdomain_index', doi=d.doi) }}" title="View">
+                  <i data-feather="eye"></i>
+                </a>
+              {% else %}
+                <a href="{{ url_for('dataset.download_dataset', dataset_id=d.dataset_id) }}" title="Download">
+                  <i data-feather="download"></i>
+                </a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="alert alert-info mb-0">No datasets found.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
