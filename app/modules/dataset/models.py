@@ -147,12 +147,11 @@ class BaseDataset(db.Model):
 
 # UVL-specific dataset (original DataSet functionality)
 class UVLDataset(BaseDataset):
-    __tablename__ = 'uvl_dataset'
+    __tablename__ = 'data_set'  # Keep original table name for backward compatibility
 
     # Relationships specific to UVL datasets
-    ds_meta_data = db.relationship("DSMetaData", backref=db.backref("uvl_dataset", uselist=False))
-    feature_models = db.relationship("FeatureModel", backref="uvl_dataset", lazy=True, cascade="all, delete",
-                                     foreign_keys="FeatureModel.data_set_id")
+    ds_meta_data = db.relationship("DSMetaData", backref=db.backref("data_set", uselist=False))
+    feature_models = db.relationship("FeatureModel", backref="data_set", lazy=True, cascade="all, delete")
 
     def files(self):
         """Get all UVL files from feature models"""
@@ -317,12 +316,8 @@ class MaterialsDataset(BaseDataset):
 
 
 # Compatibility alias: Keep DataSet pointing to UVLDataset for backward compatibility
-class DataSet(UVLDataset):
-    """
-    Backward compatibility alias for UVLDataset.
-    New code should use UVLDataset or MaterialsDataset directly.
-    """
-    __tablename__ = 'data_set'  # Keep original table name for backward compatibility
+# This is just a type alias, not a separate table
+DataSet = UVLDataset
 
 
 class DSDownloadRecord(db.Model):
