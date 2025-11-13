@@ -92,6 +92,176 @@ class DataSetService(BaseService):
     def total_dataset_views(self) -> int:
         return self.dsviewrecord_repostory.total_dataset_views()
 
+    def get_recommendations(self, dataset_id: int, limit: int = 3):
+        """
+        CAMBIO: Obtiene datasets recomendados basados en similitud de tags,
+        tipo de publicación y autor.
+
+        Args:
+            dataset_id: ID del dataset actual
+            limit: Número máximo de recomendaciones (default: 3)
+
+        Returns:
+            Lista de DataSet ordenados por relevancia
+        """
+        try:
+            # Obtener el dataset actual
+            current_dataset = self.repository.get_or_404(dataset_id)
+
+            # Verificar que tenga metadata y tags
+            if not current_dataset.ds_meta_data or not current_dataset.ds_meta_data.tags:
+                # Si no tiene tags, retornar datasets recientes
+                return DataSet.query.filter(
+                    DataSet.id != dataset_id,
+                    DataSet.ds_meta_data_id.isnot(None)
+                ).order_by(DataSet.created_at.desc()).limit(limit).all()
+
+            # Obtener tags del dataset actual
+            current_tags = set(tag.strip().lower() for tag in current_dataset.ds_meta_data.tags.split(','))
+
+            # Obtener todos los demás datasets
+            all_datasets = DataSet.query.filter(
+                DataSet.id != dataset_id,
+                DataSet.ds_meta_data_id.isnot(None)
+            ).all()
+
+            # Calcular puntuación de similitud para cada dataset
+            recommendations = []
+            for dataset in all_datasets:
+                score = 0
+
+                # Verificar que tenga metadata válida
+                if not dataset.ds_meta_data:
+                    continue
+
+                # 1. Similitud de tags (peso: 3 puntos por cada tag común)
+                if dataset.ds_meta_data.tags:
+                    dataset_tags = set(tag.strip().lower() for tag in dataset.ds_meta_data.tags.split(','))
+                    common_tags = current_tags.intersection(dataset_tags)
+                    score += len(common_tags) * 3
+
+                # 2. Mismo tipo de publicación (peso: 2 puntos)
+                if (hasattr(dataset.ds_meta_data, 'publication_type') and
+                        hasattr(current_dataset.ds_meta_data, 'publication_type') and
+                        dataset.ds_meta_data.publication_type == current_dataset.ds_meta_data.publication_type):
+                    score += 2
+
+                # 3. Mismo autor (peso: 1 punto)
+                if dataset.user_id == current_dataset.user_id:
+                    score += 1
+
+                # Solo añadir si tiene alguna puntuación
+                if score > 0:
+                    recommendations.append((dataset, score))
+
+            # Ordenar por puntuación descendente
+            recommendations.sort(key=lambda x: x[1], reverse=True)
+
+            # Obtener los mejores resultados
+            result = [rec[0] for rec in recommendations[:limit]]
+
+            # Si no hay suficientes recomendaciones, completar con datasets recientes
+            if len(result) < limit:
+                recent_datasets = DataSet.query.filter(
+                    DataSet.id != dataset_id,
+                    DataSet.ds_meta_data_id.isnot(None)
+                ).order_by(DataSet.created_at.desc()).limit(limit - len(result)).all()
+
+                # Añadir solo los que no estén ya en result
+                result_ids = {d.id for d in result}
+                for dataset in recent_datasets:
+                    if dataset.id not in result_ids:
+                        result.append(dataset)
+                        if len(result) >= limit:
+                            break
+
+            return result[:limit]
+
+        except Exception as e:
+            logger.exception(f"Error getting recommendations for dataset {dataset_id}: {e}")
+            # En caso de error, retornar lista vacía
+            return []
+
+    def get_all_except(self, dataset_id: int):
+        """
+        Obtiene todos los datasets excepto el especificado.
+
+        Args:
+            dataset_id: ID del dataset a excluir
+
+        Returns:
+            Lista de DataSet
+        """
+        return DataSet.query.filter(
+            DataSet.id != dataset_id,
+            DataSet.ds_meta_data_id.isnot(None)
+        ).all()
+
+    def filter_by_authors(self, datasets, current_dataset):
+        """
+        Filtra datasets que comparten autores con el dataset actual.
+
+        Args:
+            datasets: Lista de datasets a filtrar
+            current_dataset: Dataset de referencia
+
+        Returns:
+            Lista filtrada de datasets
+        """
+        if not current_dataset.ds_meta_data or not current_dataset.ds_meta_data.authors:
+            return []
+
+        current_authors = {a.name.strip().lower() for a in current_dataset.ds_meta_data.authors}
+
+        return [
+            ds for ds in datasets
+            if ds.ds_meta_data
+            and ds.ds_meta_data.authors
+            and any(a.name.strip().lower() in current_authors for a in ds.ds_meta_data.authors)
+        ]
+
+    def filter_by_tags(self, datasets, current_dataset):
+        """
+        Filtra datasets que comparten tags con el dataset actual.
+
+        Args:
+            datasets: Lista de datasets a filtrar
+            current_dataset: Dataset de referencia
+
+        Returns:
+            Lista filtrada de datasets
+        """
+        if not current_dataset.ds_meta_data or not current_dataset.ds_meta_data.tags:
+            return []
+
+        current_tags = {t.strip().lower() for t in current_dataset.ds_meta_data.tags.split(",")}
+
+        return [
+            ds for ds in datasets
+            if ds.ds_meta_data
+            and ds.ds_meta_data.tags
+            and any(t.strip().lower() in current_tags for t in ds.ds_meta_data.tags.split(","))
+        ]
+
+    def filter_by_community(self, datasets, current_dataset):
+        """
+        Filtra datasets que pertenecen a la misma comunidad.
+
+        Args:
+            datasets: Lista de datasets a filtrar
+            current_dataset: Dataset de referencia
+
+        Returns:
+            Lista filtrada de datasets
+        """
+        if not hasattr(current_dataset, 'community_id') or not current_dataset.community_id:
+            return []
+
+        return [
+            ds for ds in datasets
+            if hasattr(ds, 'community_id') and ds.community_id == current_dataset.community_id
+        ]
+
     def create_from_form(self, form, current_user) -> DataSet:
         main_author = {
             "name": f"{current_user.profile.surname}, {current_user.profile.name}",
@@ -148,6 +318,7 @@ class DataSetService(BaseService):
         if metric == "views":
             return self.repository.get_top_views_global(limit=limit, days=days)
         return self.repository.get_top_downloads_global(limit=limit, days=days)
+
 
 class AuthorService(BaseService):
     def __init__(self):

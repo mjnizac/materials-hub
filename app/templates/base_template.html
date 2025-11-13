@@ -33,6 +33,7 @@ chico sundermann">
 
     <link rel="stylesheet" href="{{ url_for("static", filename="css/own.css") }}">
 
+    {% block head_extra %}{% endblock %}
 </head>
 
 <body>
@@ -308,7 +309,9 @@ Romero-Organvidez, D., Galindo, J. A., Sundermann, C., Horcas, J.-M., & Benavide
 
 </script>
 
-{% block scripts %}{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/recommendations.js') }}"></script>
+{% endblock %}
 
 </body>
 

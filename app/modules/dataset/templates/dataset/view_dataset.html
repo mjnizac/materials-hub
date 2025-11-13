@@ -4,6 +4,16 @@
 
 {% block head_extra %}
 <style>
+    body {
+        background-color: #f8f9fa;
+    }
+
+    .card {
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        background-color: #fff;
+    }
+
     .option-button {
         display: block;
         width: 100%;
@@ -13,93 +23,325 @@
     .option-button:last-child {
         margin-bottom: 0;
     }
+
+    .list-group-item {
+        border: none;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .list-group-item:last-child {
+        border-bottom: none;
+    }
+
+    .recommendations-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .recommendations-table-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 150px;
+    }
+
+    .recommendations-table {
+        border-radius: 10px;
+        border: 2px solid rgba(108, 117, 125, 0.5);
+        background-color: #ffffff;
+        padding: 20px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .recommendation-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .recommendation-row {
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 6px;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+        background-color: #fafafa;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .recommendation-row:hover {
+        background-color: #f1f3f5;
+        border-color: #adb5bd;
+    }
+
+    .recommendation-left {
+        width: 100%;
+    }
+
+    .recommendation-right {
+        display: none;
+    }
+
+    .recommendation-title {
+        font-weight: bold;
+        font-size: 1.1em;
+        color: #000;
+        margin-bottom: 5px;
+    }
+
+    .recommendation-title a {
+        color: #0d6efd;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .recommendation-title a:hover {
+        text-decoration: underline;
+    }
+
+    .recommendation-date {
+        font-size: 0.9em;
+        color: #6c757d;
+    }
+
+    .recommendation-author {
+        font-size: 0.95em;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+
+    .recommendation-description {
+        color: #495057;
+        font-size: 0.9rem;
+        margin-top: 5px;
+        margin-bottom: 5px;
+    }
+
+    .recommendation-badges .badge {
+        font-size: 0.85rem;
+        padding: 0.4em 0.6em;
+        border-radius: 0.4rem;
+    }
+
+    .recommendation-filters {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        min-width: 140px;
+        height: auto;
+        align-self: stretch;
+    }
+
+    .recommendation-filters h6 {
+        text-align: center;
+    }
+
+    .filter-btn {
+        width: 100%;
+        max-width: 140px;
+        text-align: center;
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 0;
+        font-weight: 500;
+        transition: background-color 0.3s;
+    }
+
+    .filter-btn:hover {
+        background-color: #79848d;
+    }
+
+    .filter-btn.active {
+        background-color: #0d6efd;
+    }
+
+    .btn-light {
+        background-color: #6c757d;
+        border: none;
+        color: #fff !important;
+    }
+
+    .btn-primary {
+        background-color: #0d6efd;
+        border: none;
+        color: #fff !important;
+    }
+
+    .btn-primary:hover {
+        background-color: #0b5ed7;
+        color: #fff !important;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+        color: #fff !important;
+    }
+
+    .pagination .page-item.active .page-link:hover,
+    .pagination .page-item.active .page-link:focus {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+        color: #fff !important;
+    }
+
+    .pagination .page-item:not(.active) .page-link:hover,
+    .pagination .page-item:not(.active) .page-link:focus {
+        background-color: #e7f1ff;
+        color: #0d6efd;
+        border-color: #0d6efd;
+    }
+
+    .pagination .page-link {
+        font-size: 1rem;
+        padding: 10px 15px;
+        border-radius: 5px;
+        margin: 0 5px;
+    }
+
+    .pagination .page-link:hover {
+        background-color: #e9ecef;
+    }
+
+    .pagination .page-item:first-child .page-link,
+    .pagination .page-item:last-child .page-link {
+        border-radius: 8px !important;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 
 <div class="row mb-3">
-
     <div class="col-6">
         <a href="/explore" class="btn btn-primary btn-sm" id="search" style="border-radius: 5px;">
             <i data-feather="search" class="center-button-icon"></i>
             Explore more datasets
         </a>
     </div>
-
 </div>
 
 <div class="row">
-
     <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12">
-
         <div class="card">
             <div class="card-body">
                 <div class="d-flex align-items-center justify-content-between">
                     <h1><b>{{ dataset.ds_meta_data.title }}</b></h1>
-                    <div>
-                        <span class="badge bg-secondary">{{ dataset.get_cleaned_publication_type() }}</span>
-                    </div>
+                    <span class="badge bg-secondary">{{ dataset.get_cleaned_publication_type() }}</span>
                 </div>
-                <p class="text-secondary">{{ dataset.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
 
+                <p class="text-secondary">
+                    {{ dataset.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                </p>
+
+                <!-- Description -->
                 <div class="row mb-4">
-
-                    <div class="col-md-4 col-12">
-                        <span class=" text-secondary">
-                            Description
-                        </span>
-                    </div>
+                    <div class="col-md-4 col-12 text-secondary">Description</div>
                     <div class="col-md-8 col-12">
                         <p class="card-text">{{ dataset.ds_meta_data.description }}</p>
                     </div>
-
                 </div>
 
-                <div class="row mb-2">
+                <!-- Recommendations -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <span class="text-secondary d-block mb-2">Recommendations</span>
 
-                    <div class="col-md-4 col-12">
-                        <span class=" text-secondary">
-                            Uploaded by
-                        </span>
+                        {% if recommended_datasets and recommended_datasets|length > 0 %}
+                        <!-- Contenedor conjunto: tabla + filtros -->
+                        <div class="recommendations-container">
+                            <!-- Tabla de recomendaciones -->
+                            <div class="recommendations-table-wrapper">
+                                <div class="recommendations-table" id="recommendations-table">
+                                    {% for rec_dataset in recommended_datasets %}
+                                    <div class="recommendation-row">
+                                        <div class="recommendation-left">
+                                            <div class="recommendation-header d-flex justify-content-between align-items-center mb-1">
+                                                <div class="recommendation-title">
+                                                    <a href="/doi/{{ rec_dataset.ds_meta_data.dataset_doi }}/">
+                                                        {{ rec_dataset.ds_meta_data.title }}
+                                                    </a>
+                                                </div>
+                                                <div class="recommendation-author text-end text-secondary">
+                                                    {% for author in rec_dataset.ds_meta_data.authors %}
+                                                    {{ author.name }}
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+
+                                            <!-- Fecha y badges en la misma línea -->
+                                            <div class="recommendation-meta d-flex justify-content-between align-items-center mb-2">
+                                                <div class="recommendation-date">
+                                                    {{ rec_dataset.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                                </div>
+                                                <div class="recommendation-badges text-end">
+                                                    {% for tag in rec_dataset.ds_meta_data.tags.split(',')[:2] %}
+                                                    <span class="badge bg-info">{{ tag.strip() }}</span>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+
+                                            <div class="recommendation-description">
+                                                {{ rec_dataset.ds_meta_data.description[:100] }}
+                                                {% if rec_dataset.ds_meta_data.description|length > 100 %}...{% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Filtros a la derecha -->
+                            <div class="recommendation-filters">
+                                <button class="filter-btn" onclick="toggleFilter(this, 'authors')">Authors</button>
+                                <button class="filter-btn" onclick="toggleFilter(this, 'tags')">Tags</button>
+                                <button class="filter-btn" onclick="toggleFilter(this, 'communities')">Communities</button>
+                            </div>
+                        </div>
+
+                        <!-- Paginación -->
+                        <nav class="mt-3" aria-label="Recommendations pagination">
+                            <ul class="pagination pagination-sm justify-content-center"></ul>
+                        </nav>
+
+                        {% else %}
+                        <div class="alert alert-info" role="alert">
+                            <i data-feather="info"></i> No recommendations available yet.
+                        </div>
+                        {% endif %}
                     </div>
+                </div>
+
+                <!-- Uploaded by -->
+                <div class="row mb-2">
+                    <div class="col-md-4 col-12 text-secondary">Uploaded by</div>
                     <div class="col-md-8 col-12">
                         <a href="#">{{ dataset.user.profile.surname }}, {{ dataset.user.profile.name }}</a>
                     </div>
-
                 </div>
 
+                <!-- Authors -->
                 <div class="row mb-2">
-
-                    <div class="col-md-4 col-12">
-                        <span class=" text-secondary">
-                            Authors
-                        </span>
-                    </div>
+                    <div class="col-md-4 col-12 text-secondary">Authors</div>
                     <div class="col-md-8 col-12">
                         {% for author in dataset.ds_meta_data.authors %}
-                        <p class="p-0 m-0">
+                        <p class="m-0">
                             {{ author.name }}
-                            {% if author.affiliation %}
-                            ({{ author.affiliation }})
-                            {% endif %}
-                            {% if author.orcid %}
-                            ({{ author.orcid }})
-                            {% endif %}
+                            {% if author.affiliation %} ({{ author.affiliation }}){% endif %}
+                            {% if author.orcid %} ({{ author.orcid }}){% endif %}
                         </p>
                         {% endfor %}
                     </div>
-
-
                 </div>
 
+                <!-- Publication DOI -->
                 {% if dataset.ds_meta_data.publication_doi %}
                 <div class="row mb-2">
-                    <div class="col-md-4 col-12">
-                        <span class="text-secondary">
-                            Publication DOI
-                        </span>
-                    </div>
+                    <div class="col-md-4 col-12 text-secondary">Publication DOI</div>
                     <div class="col-md-8 col-12">
                         <a href="{{ dataset.ds_meta_data.publication_doi }}">
                             {{ dataset.ds_meta_data.publication_doi }}
@@ -108,253 +350,173 @@
                 </div>
                 {% endif %}
 
+                <!-- Zenodo record -->
                 {% if dataset.ds_meta_data.dataset_doi %}
                 <div class="row mb-2">
-                    
-                        <div class="col-md-4 col-12">
-                            <span class=" text-secondary">
-                                Zenodo record
-                            </span>
-                        </div>
-
+                    <div class="col-md-4 col-12 text-secondary">Zenodo record</div>
+                    <div class="col-md-8 col-12">
                         {% if FLASK_ENV == 'production' %}
-                            <div class="col-md-8 col-12">
-                                <a href="https://zenodo.org/records/{{ dataset.ds_meta_data.deposition_id }}" target="_blank">
-                                    https://zenodo.org/records/{{ dataset.ds_meta_data.deposition_id }}
-                                </a>
-                            </div>
+                        <a href="https://zenodo.org/records/{{ dataset.ds_meta_data.deposition_id }}" target="_blank">
+                            https://zenodo.org/records/{{ dataset.ds_meta_data.deposition_id }}
+                        </a>
                         {% elif FLASK_ENV == 'development' %}
-                            <div class="col-md-8 col-12">
-                                <a href="https://sandbox.zenodo.org/records/{{ dataset.ds_meta_data.deposition_id }}" target="_blank">
-                                    https://sandbox.zenodo.org/records/{{ dataset.ds_meta_data.deposition_id }}
-                                </a>
-                            </div>
+                        <a href="https://sandbox.zenodo.org/records/{{ dataset.ds_meta_data.deposition_id }}" target="_blank">
+                            https://sandbox.zenodo.org/records/{{ dataset.ds_meta_data.deposition_id }}
+                        </a>
                         {% else %}
-                            <div class="col-md-8 col-12">
-                                <a href="https://zenodo.org/records/{{ dataset.ds_meta_data.deposition_id }}" target="_blank">
-                                    https://sandbox.zenodo.org/records/{{ dataset.ds_meta_data.deposition_id }}
-                                </a>
-                            </div>
+                        <a href="https://zenodo.org/records/{{ dataset.ds_meta_data.deposition_id }}" target="_blank">
+                            https://sandbox.zenodo.org/records/{{ dataset.ds_meta_data.deposition_id }}
+                        </a>
                         {% endif %}
-
+                    </div>
                 </div>
                 {% endif %}
-                <div class="row mb-2">
 
-                    <div class="col-md-4 col-12">
-                        <span class=" text-secondary">
-                            Tags
-                        </span>
-                    </div>
+                <!-- Tags -->
+                <div class="row mb-2">
+                    <div class="col-md-4 col-12 text-secondary">Tags</div>
                     <div class="col-md-8 col-12">
                         {% for tag in dataset.ds_meta_data.tags.split(',') %}
                         <span class="badge bg-secondary">{{ tag.strip() }}</span>
                         {% endfor %}
                     </div>
-
                 </div>
-
-                
-
             </div>
 
             {% if dataset.ds_meta_data.dataset_doi %}
-            <div class="card-body" style="padding-top: 0px">
-
-                <div id="dataset_doi_uvlhub" style="display: none">
+            <div class="card-body pt-0">
+                <div id="dataset_doi_uvlhub_hidden" style="display: none">
                     {{ dataset.get_uvlhub_doi() }}
                 </div>
 
-                <button type="button" class="btn doi_button btn-sm" onclick="copyText('dataset_doi_uvlhub')">
-                    <span class="button_doi_id">
-                        <i data-feather="clipboard" class="center-button-icon" style="cursor: pointer"></i>
-                        <b>DOI</b>
-                    </span>
-                    <span class="doi_text">
-                        {{ dataset.get_uvlhub_doi() }}
-                    </span>
+                <button type="button" class="btn doi_button btn-sm" onclick="copyText('dataset_doi_uvlhub_hidden')">
+                    <i data-feather="clipboard" class="center-button-icon"></i>
+                    <b>DOI</b>
+                    <span class="ms-2">{{ dataset.get_uvlhub_doi() }}</span>
                 </button>
-                
-                <div id="dataset_doi_uvlhub" style="display: none">
-                    {{ dataset.get_uvlhub_doi() }}
-                </div>
-                
             </div>
             {% endif %}
-
         </div>
 
-        <div class="card">
-
+        <!-- Related publication -->
+        <div class="card mt-3">
             <div class="card-body">
-
-                <h3> Related publication </h3>
-                
+                <h3>Related publication</h3>
                 David Romero-Organvidez, José A. Galindo, Chico Sundermann, Jose-Miguel Horcas, David Benavides,
                 <i>UVLHub: A feature model data repository using UVL and open science principles</i>,
                 Journal of Systems and Software,
-                2024,
-                112150,
-                ISSN 0164-1212,
-                <a href="https://doi.org/10.1016/j.jss.2024.112150" target="_blank">https://doi.org/10.1016/j.jss.2024.112150</a>
-
+                2024, 112150, ISSN 0164-1212,
+                <a href="https://doi.org/10.1016/j.jss.2024.112150" target="_blank">
+                    https://doi.org/10.1016/j.jss.2024.112150
+                </a>
             </div>
 
-            <div class="card-body mt-0 pt-0">
-
-                <button onclick="copyText('bibtex_cite')" class="btn btn-light btn-sm" style="border-radius: 5px; margin-right: 10px">
-                    <i data-feather="clipboard" class="center-button-icon"></i>
-                    Copy in BibTex
+            <div class="card-body pt-0">
+                <button onclick="copyText('bibtex_cite')" class="btn btn-light btn-sm me-2" style="border-radius: 5px;">
+                    <i data-feather="clipboard" class="center-button-icon"></i> Copy in BibTex
                 </button>
 
-                <button onclick="copyText('ris_cite')" class="btn btn-light btn-sm" style="border-radius: 5px;">
-                    <i data-feather="clipboard" class="center-button-icon"></i>
-                    Copy in RIS
+                <button onclick="copyText('ris_cite')" class="btn btn-light btn-sm me-2" style="border-radius: 5px;">
+                    <i data-feather="clipboard" class="center-button-icon"></i> Copy in RIS
                 </button>
 
-                <button onclick="copyText('apa_cite')" class="btn btn-light btn-sm" style="border-radius: 5px;">
-                    <i data-feather="clipboard" class="center-button-icon"></i>
-                    Copy in APA
+                <button onclick="copyText('apa_cite')" class="btn btn-light btn-sm me-2" style="border-radius: 5px;">
+                    <i data-feather="clipboard" class="center-button-icon"></i> Copy in APA
                 </button>
 
                 <button onclick="copyText('text_cite')" class="btn btn-light btn-sm" style="border-radius: 5px;">
-                    <i data-feather="clipboard" class="center-button-icon"></i>
-                    Copy in text
+                    <i data-feather="clipboard" class="center-button-icon"></i> Copy in text
                 </button>
-
             </div>
-
         </div>
-
-
     </div>
 
+    <!-- Columna derecha (archivos UVL) -->
     <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12">
-
         <div class="list-group">
-
-            <div class="list-group-item">
-
-                <div class="row">
-                    <div class="col-12 d-flex justify-content-between align-items-center">
-                        <h4 style="margin-bottom: 0px">UVL models</h4>
-                        <h4 style="margin-bottom: 0px;"><span class="badge bg-dark">{{ dataset.get_files_count() }}</span></h4>
-                    </div>
-                </div>
-                
-
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">UVL models</h4>
+                <h4 class="mb-0"><span class="badge bg-dark">{{ dataset.get_files_count() }}</span></h4>
             </div>
-            
 
             {% for feature_model in dataset.feature_models %}
-                {% for file in feature_model.files %}
-                    <div class="list-group-item">
-                        
-                        <div class="row">
-                            <div class="col-12">
+            {% for file in feature_model.files %}
+            <div class="list-group-item">
+                <div class="row">
+                    <div class="col-8">
+                        <i data-feather="file"></i> {{ file.name }}
+                        <br>
+                        <small class="text-muted">({{ file.get_formatted_size() }})</small>
+                    </div>
+                    <div class="col-4 text-end">
+                        <div id="check_{{ file.id }}"></div>
+                    </div>
 
-                                <div class="row">
-                                    <div class="col-8">
-                                        <i data-feather="file"></i> {{ file.name }}
-                                        <br>
-                                        <small class="text-muted">({{ file.get_formatted_size() }})</small>
-                                    </div>
-                                    <div class="col-2">
-                                        <div id="check_{{ file.id }}">
-                                        </div>
-                                    </div>
-                                </div>
+                    <div class="col-12 text-end mt-2">
+                        <button onclick="viewFile('{{ file.id }}')" class="btn btn-outline-secondary btn-sm me-1" style="border-radius: 5px;">
+                            <i data-feather="eye"></i> View
+                        </button>
 
-                                
-                            </div>
-                            <div class="col-12 text-end" >
+                        <div class="btn-group me-1">
+                            <button id="btnGroupDrop{{ file.id }}" type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 5px;">
+                                <i data-feather="check"></i> Check
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="javascript:void(0);" onclick="checkUVL('{{ file.id }}')">Syntax check</a>
+                                </li>
+                            </ul>
+                        </div>
 
-                                <button onclick="viewFile('{{ file.id }}')" class="btn btn-outline-secondary btn-sm" style="border-radius: 5px;">
-                                    <i data-feather="eye"></i> View
-                                </button>
-
-                                <div class="btn-group" role="group">
-                                    <button id="btnGroupDrop{{ file.id }}" type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" style=" border-radius: 5px;">
-                                        <i data-feather="check"></i> Check
-                                    </button>
-                                    <ul class="dropdown-menu" aria-labelledby="btnGroupDrop{{ file.id }}">
-                                        <li>
-                                            <a class="dropdown-item" href="javascript:void(0);" onclick="checkUVL('{{ file.id }}')">Syntax check</a>
-                                        </li>
-                                        <!--
-                                        <li>
-                                            <a class="dropdown-item" href="{{ url_for('flamapy.valid', file_id=file.id) }}">SAT validity check</a>
-                                        </li>
-                                        -->
-                                    </ul>
-                                </div>
-                                
-                                <div class="btn-group" role="group">
-                                    <button id="btnGroupDropExport{{ file.id }}" type="button" class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" style=" border-radius: 5px;">
-                                        <i data-feather="download"></i> Export
-                                    </button>
-                                    <ul class="dropdown-menu" aria-labelledby="btnGroupDropExport{{ file.id }}">
-                                        <li>
-                                            <a class="dropdown-item" href="{{ url_for('hubfile.download_file', file_id=file.id) }}">
-                                                UVL
-                                            </a>
-                                            <a class="dropdown-item" href="{{ url_for('flamapy.to_glencoe', file_id=file.id) }}">
-                                                Glencoe
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="{{ url_for('flamapy.to_cnf', file_id=file.id) }}">
-                                                DIMACS
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="{{ url_for('flamapy.to_splot', file_id=file.id) }}">
-                                                SPLOT
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
-                                
-                                
-
-                            </div>
+                        <div class="btn-group">
+                            <button id="btnGroupDropExport{{ file.id }}" type="button" class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 5px;">
+                                <i data-feather="download"></i> Export
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('hubfile.download_file', file_id=file.id) }}">UVL</a>
+                                    <a class="dropdown-item" href="{{ url_for('flamapy.to_glencoe', file_id=file.id) }}">Glencoe</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('flamapy.to_cnf', file_id=file.id) }}">DIMACS</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('flamapy.to_splot', file_id=file.id) }}">SPLOT</a>
+                                </li>
+                            </ul>
                         </div>
                     </div>
-                {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
             {% endfor %}
         </div>
-        
-        
-    
+
         <a href="/dataset/download/{{ dataset.id }}" class="btn btn-primary mt-3" style="border-radius: 5px;">
             <i data-feather="download" class="center-button-icon"></i>
             Download all ({{ dataset.get_file_total_size_for_human() }})
         </a>
     </div>
-    
 </div>
 
-<!-- Modal-->
+<!-- Modal -->
 <div class="modal fade" id="fileViewerModal" tabindex="-1" aria-labelledby="fileViewerModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" style="height: 80vh; display: flex; align-items: center;">
+    <div class="modal-dialog modal-lg" style="height: 80vh;">
         <div class="modal-content" style="height: 80vh;">
-            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="modal-header d-flex justify-content-between align-items-center">
                 <h5 class="modal-title" id="fileViewerModalLabel">Feature model view</h5>
                 <div>
-                    <a href="#" class="btn btn-outline-primary btn-sm" id="downloadButton"
-                        style="margin-right: 5px; margin-bottom: 5px; border-radius: 5px;">
+                    <a href="#" class="btn btn-outline-primary btn-sm me-1" id="downloadButton">
                         <i data-feather="download"></i>
                     </a>
-                    <button onclick="copyToClipboard()" class="btn btn-outline-secondary btn-sm"
-                        style="margin-right: 5px; margin-bottom: 5px; border-radius: 5px;">
+                    <button onclick="copyToClipboard()" class="btn btn-outline-secondary btn-sm me-1">
                         <i data-feather="copy"></i>
                     </button>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
             </div>
-            <div class="modal-body" style="overflow-y: auto; height: calc(100vh - 50px);">
-                <pre id="fileContent" style="height: 100%; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word; background-color: #f5f5f5; padding: 20px; border-radius: 5px; border: 1px solid #ccc;"></pre>
-
+            <div class="modal-body" style="overflow-y: auto;">
+                <pre id="fileContent" style="white-space: pre-wrap; background-color: #f5f5f5; padding: 20px; border-radius: 5px; border: 1px solid #ccc;"></pre>
             </div>
         </div>
     </div>
@@ -362,135 +524,108 @@
 
 <script type="text/javascript" src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
 
-
-
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         feather.replace();
+
+        const pathname = window.location.pathname;
+        let datasetId;
+        let recommendationsUrlBase;
+
+        // Detectar si la URL actual usa /doi/ o /dataset/
+        if (pathname.startsWith("/doi/")) {
+            // Extraer el DOI completo (todo lo que viene después de /doi/ hasta el siguiente /)
+            const doiMatch = pathname.match(/^\/doi\/([^\/]+(?:\/[^\/]+)*)\/?$/);
+            if (doiMatch) {
+                const doi = doiMatch[1];
+                datasetId = doi;
+                recommendationsUrlBase = `/doi/${doi}/recommendations`;
+            }
+        } else if (pathname.startsWith("/dataset/")) {
+            // Extraer el ID del dataset
+            const pathParts = pathname.split("/");
+            datasetId = pathParts[2];
+            recommendationsUrlBase = `/dataset/${datasetId}/recommendations`;
+        }
+
+        // Guardar para que lo use loadRecommendations()
+        window.recommendationsUrlBase = recommendationsUrlBase;
+
+        if (datasetId && recommendationsUrlBase) {
+            loadRecommendations(datasetId);
+        }
     });
 
-    var currentFileId;
+    let currentFilter = null;
+    let currentPage = 1;
+    let datasetId = window.location.pathname.split("/")[2];
 
-    function viewFile(fileId) {
-        fetch(`/file/view/${fileId}`)
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('fileContent').textContent = data.content;
-                currentFileId = fileId;
-                document.getElementById('downloadButton').href = `/file/download/${fileId}`;
-                var modal = new bootstrap.Modal(document.getElementById('fileViewerModal'));
-                modal.show();
-            })
-            .catch(error => console.error('Error loading file:', error));
-    }
+    /**
+     * 🔄 Carga las recomendaciones de datasets dinámicamente (AJAX)
+     */
+    async function loadRecommendations(datasetId, page = 1, filterType = null) {
+        const params = new URLSearchParams({ page });
+        if (filterType) params.append("filter_type", filterType);
 
-    function showLoading() {
-        document.getElementById("loading").style.display = "initial";
-    }
+        const response = await fetch(`${window.recommendationsUrlBase}?${params.toString()}`);
+        const data = await response.json();
 
-    function hideLoading() {
-        document.getElementById("loading").style.display = "none";
-    }
-
-    function checkUVL(file_id) {
-    const outputDiv = document.getElementById('check_' + file_id);
-    outputDiv.innerHTML = ''; // Clear previous output
-
-    fetch(`/flamapy/check_uvl/${file_id}`)
-        .then(response => {
-            return response.json().then(data => ({
-                status: response.status,
-                data
-            }));
-        })
-        .then(({ status, data }) => {
-            if (status === 400) {
-                // Display errors
-                if (data.errors) {
-                    outputDiv.innerHTML = '<span class="badge badge-danger">Errors:</span>';
-                    data.errors.forEach(error => {
-                        const errorElement = document.createElement('span');
-                        errorElement.className = 'badge badge-danger';
-                        errorElement.textContent = error;
-                        outputDiv.appendChild(errorElement);
-                        outputDiv.appendChild(document.createElement('br')); // Line break for better readability
-                    });
-                } else {
-                    outputDiv.innerHTML = `<span class="badge badge-danger">Error: ${data.error}</span>`;
-                }
-            } else if (status === 200) {
-                // Display success message
-                outputDiv.innerHTML = '<span class="badge badge-success">Valid Model</span>';
-            } else {
-                // Handle unexpected status
-                outputDiv.innerHTML = `<span class="badge badge-warning">Unexpected response status: ${status}</span>`;
-            }
-        })
-        .catch(error => {
-            // Handle fetch errors
-            outputDiv.innerHTML = `<span class="badge badge-danger">An unexpected error occurred: ${error.message}</span>`;
-        });
-}
-
-
-    /*
-    async function valid() {
-        showLoading()
-        let pyodide = await loadPyodide();
-        await pyodide.loadPackage("micropip");
-        const micropip = pyodide.pyimport("micropip");
-        //await micropip.install("/assets/web_assembly/antlr4_python3_runtime-4.7.2-py3-none-any.whl");
-        await micropip.install("antlr4-python3-runtime==4.13.1");
-        await micropip.install("uvlparser==2.0.1");
-        //await micropip.install("afmparser==1.0.0");
-
-        await pyodide.runPythonAsync(
-        `
-            import micropip
-            #await micropip.install("flamapy-fm-dist", deps=False)#this is to avoid problems with deps later on
-            await micropip.install("flamapy==2.0.1.dev1", deps=False);
-            await micropip.install("flamapy-fm==2.0.1.dev1", deps=False);
-            await micropip.install("flamapy-sat");
-        `
-        )
-        hideLoading()
-
-        try {
-            let output = pyodide.runPython(
-            `
-            import js
-
-            file_content = js.document.getElementById('fileContent').textContent 
-            div = js.document.createElement("result")
-
-            with open("uvlfile.uvl", "w") as text_file:
-                print(file_content, file=text_file)
-
-            from flamapy.interfaces.python.FLAMAFeatureModel import FLAMAFeatureModel
-
-            fm = FLAMAFeatureModel("uvlfile.uvl")
-            result=fm.valid()
-
-            div.innerHTML = "<div id='deleteme'>"+str(result)+"</div>"
-            exists=js.document.getElementById('deleteme')
-            if(exists):
-                exists.remove()
-
-            js.document.getElementById('result').append(div)
-            `
-        );
-        } catch (err) {
-            console.log(err);
+        const container = document.querySelector(".recommendations-table-wrapper");
+        if (container) {
+            container.innerHTML = data.html;
         }
+
+        renderPagination(data.page, data.total_pages);
     }
-    */
-    function copyToClipboard() {
-        const text = document.getElementById('fileContent').textContent;
-        navigator.clipboard.writeText(text).then(() => {
-            console.log('Text copied to clipboard');
-        }).catch(err => {
-            console.error('Failed to copy text: ', err);
+
+    /**
+     * 🧭 Aplica el filtro seleccionado (authors/tags/communities)
+     */
+    function applyFilter(type) {
+        currentFilter = type;
+        currentPage = 1;
+        loadRecommendations(datasetId, currentPage, currentFilter);
+    }
+
+    /**
+     * 🧱 Función llamada por los botones de filtro
+     */
+    function toggleFilter(button, filterType) {
+        // Cambiar estilos de botones
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-light');
         });
+
+        button.classList.add('active');
+        button.classList.remove('btn-light');
+        button.classList.add('btn-primary');
+
+        // Aplicar el filtro
+        applyFilter(filterType);
+    }
+
+    /**
+     * 📄 Renderiza la paginación de forma dinámica (sin recargar)
+     */
+    function renderPagination(page, total) {
+        const paginationContainer = document.querySelector(".pagination");
+        if (!paginationContainer) return;
+
+        paginationContainer.innerHTML = "";
+
+        for (let p = 1; p <= total; p++) {
+            const li = document.createElement("li");
+            li.className = `page-item ${p === page ? "active" : ""}`;
+            li.innerHTML = `<a class="page-link" href="#">${p}</a>`;
+            li.addEventListener("click", e => {
+                e.preventDefault();
+                currentPage = p;
+                loadRecommendations(datasetId, currentPage, currentFilter);
+            });
+            paginationContainer.appendChild(li);
+        }
     }
 </script>
 
