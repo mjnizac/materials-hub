@@ -246,7 +246,9 @@ class MaterialsDatasetService:
     ]
 
     def __init__(self):
-        pass
+        from app.modules.dataset.repositories import MaterialsDatasetRepository, MaterialRecordRepository
+        self.materials_dataset_repository = MaterialsDatasetRepository()
+        self.material_record_repository = MaterialRecordRepository()
 
     def validate_csv_columns(self, csv_columns: list) -> dict:
         """
