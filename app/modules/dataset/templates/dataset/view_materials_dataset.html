@@ -1,0 +1,165 @@
+{% extends "base_template.html" %}
+
+{% block title %}{{ dataset.ds_meta_data.title }}{% endblock %}
+
+{% block content %}
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">{{ dataset.ds_meta_data.title }}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">{{ dataset.ds_meta_data.description }}</p>
+
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Total Records</h6>
+                                    <h3 class="card-title">{{ total }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Unique Materials</h6>
+                                    <h3 class="card-title">{{ dataset.get_unique_materials()|length }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Unique Properties</h6>
+                                    <h3 class="card-title">{{ dataset.get_unique_properties()|length }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Publication Type</h6>
+                                    <p class="card-text">{{ dataset.ds_meta_data.publication_type.name.replace('_', ' ').title() }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <a href="{{ url_for('dataset.materials_dataset_statistics', dataset_id=dataset.id) }}" class="btn btn-primary">
+                            <i data-feather="bar-chart-2"></i> View Statistics
+                        </a>
+                        <a href="{{ url_for('dataset.upload_materials_csv', dataset_id=dataset.id) }}" class="btn btn-success">
+                            <i data-feather="upload"></i> Upload CSV
+                        </a>
+                        <a href="{{ url_for('dataset.search_materials', dataset_id=dataset.id) }}" class="btn btn-info">
+                            <i data-feather="search"></i> Search Materials
+                        </a>
+                        <a href="{{ url_for('dataset.list_materials_datasets') }}" class="btn btn-secondary">
+                            <i data-feather="arrow-left"></i> Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if records %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Material Records (Page {{ page }} of {{ total_pages }})</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                <tr>
+                                    <th>Material</th>
+                                    <th>Formula</th>
+                                    <th>Structure</th>
+                                    <th>Property</th>
+                                    <th>Value</th>
+                                    <th>Unit</th>
+                                    <th>Temperature</th>
+                                    <th>Data Source</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for record in records %}
+                                    <tr>
+                                        <td><strong>{{ record.material_name }}</strong></td>
+                                        <td>{{ record.chemical_formula or '-' }}</td>
+                                        <td>{{ record.structure_type or '-' }}</td>
+                                        <td>{{ record.property_name }}</td>
+                                        <td>{{ record.property_value }}</td>
+                                        <td>{{ record.property_unit or '-' }}</td>
+                                        <td>{{ record.temperature or '-' }} {% if record.temperature %}K{% endif %}</td>
+                                        <td>
+                                            {% if record.data_source %}
+                                                <span class="badge bg-info">{{ record.data_source.value }}</span>
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% if record.description %}
+                                    <tr class="table-secondary">
+                                        <td colspan="8">
+                                            <small><i data-feather="info"></i> {{ record.description }}</small>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if total_pages > 1 %}
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                                    <a class="page-link" href="{{ url_for('dataset.view_materials_dataset', dataset_id=dataset.id, page=page-1, per_page=per_page) }}">Previous</a>
+                                </li>
+
+                                {% for p in range(1, total_pages + 1) %}
+                                    {% if p == page %}
+                                        <li class="page-item active"><a class="page-link" href="#">{{ p }}</a></li>
+                                    {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                                        <li class="page-item"><a class="page-link" href="{{ url_for('dataset.view_materials_dataset', dataset_id=dataset.id, page=p, per_page=per_page) }}">{{ p }}</a></li>
+                                    {% elif p == page - 3 or p == page + 3 %}
+                                        <li class="page-item disabled"><a class="page-link" href="#">...</a></li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                                    <a class="page-link" href="{{ url_for('dataset.view_materials_dataset', dataset_id=dataset.id, page=page+1, per_page=per_page) }}">Next</a>
+                                </li>
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="alert alert-info" role="alert">
+                    <h5 class="alert-heading">No material records found</h5>
+                    <p>This dataset doesn't have any material records yet. Upload a CSV file to add records.</p>
+                    <hr>
+                    <a href="{{ url_for('dataset.upload_materials_csv', dataset_id=dataset.id) }}" class="btn btn-sm btn-primary">
+                        <i data-feather="upload"></i> Upload CSV Now
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+{% endblock %}

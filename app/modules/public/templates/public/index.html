@@ -133,7 +133,11 @@
                             <h4 class="h4 mb-3" class="stats-color">
                                 <i data-feather="file" class="align-middle mr-2 stats-color"></i>&nbsp;{{ feature_models_counter }} feature models
                             </h4>
-                    
+
+                            <h4 class="h4 mb-3" class="stats-color">
+                                <i data-feather="box" class="align-middle mr-2 stats-color"></i>&nbsp;{{ materials_datasets_counter }} materials datasets
+                            </h4>
+
                             <h4 class="h4 mb-3" class="stats-color">
                                 <i data-feather="eye" class="align-middle mr-2 stats-color"></i>&nbsp;{{ total_dataset_views }} datasets viewed
                             </h4>
@@ -156,6 +160,41 @@
 
                 </div>
             </div>
+
+                {% if latest_materials_datasets %}
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Latest Materials Datasets</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group">
+                                {% for materials_dataset in latest_materials_datasets %}
+                                    <a href="{{ url_for('dataset.view_materials_dataset', dataset_id=materials_dataset.id) }}"
+                                       class="list-group-item list-group-item-action">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ materials_dataset.ds_meta_data.title }}</h6>
+                                            <small>{{ materials_dataset.created_at.strftime('%Y-%m-%d') }}</small>
+                                        </div>
+                                        <p class="mb-1 text-muted">{{ materials_dataset.ds_meta_data.description[:100] }}{% if materials_dataset.ds_meta_data.description|length > 100 %}...{% endif %}</p>
+                                        <small>
+                                            <span class="badge bg-primary">{{ materials_dataset.get_unique_materials()|length }} materials</span>
+                                            <span class="badge bg-success">{{ materials_dataset.get_materials_count() }} records</span>
+                                        </small>
+                                    </a>
+                                {% endfor %}
+                            </div>
+                            {% if current_user.is_authenticated %}
+                            <div class="mt-3">
+                                <a href="{{ url_for('dataset.list_materials_datasets') }}" class="btn btn-primary btn-sm">
+                                    <i data-feather="list"></i> View all my materials datasets
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
 
                 <div class="col-12">
 

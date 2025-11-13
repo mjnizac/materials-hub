@@ -1,0 +1,198 @@
+{% extends "base_template.html" %}
+
+{% block title %}Statistics - {{ dataset.ds_meta_data.title }}{% endblock %}
+
+{% block content %}
+
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-3">Dataset Statistics</h1>
+            <h5 class="text-muted">{{ dataset.ds_meta_data.title }}</h5>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i data-feather="database" class="text-primary" style="width: 48px; height: 48px;"></i>
+                    <h3 class="mt-2">{{ dataset.get_materials_count() }}</h3>
+                    <p class="text-muted mb-0">Total Records</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i data-feather="box" class="text-success" style="width: 48px; height: 48px;"></i>
+                    <h3 class="mt-2">{{ dataset.get_unique_materials()|length }}</h3>
+                    <p class="text-muted mb-0">Unique Materials</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i data-feather="tag" class="text-info" style="width: 48px; height: 48px;"></i>
+                    <h3 class="mt-2">{{ dataset.get_unique_properties()|length }}</h3>
+                    <p class="text-muted mb-0">Unique Properties</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i data-feather="calendar" class="text-warning" style="width: 48px; height: 48px;"></i>
+                    <h6 class="mt-2 mb-0">{{ dataset.created_at.strftime('%Y-%m-%d') }}</h6>
+                    <p class="text-muted mb-0">Created</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Unique Materials</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for material in dataset.get_unique_materials()|sort %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ material }}
+                                <span class="badge bg-primary rounded-pill">
+                                    {% set count = dataset.material_records|selectattr('material_name', 'equalto', material)|list|length %}
+                                    {{ count }} record{% if count != 1 %}s{% endif %}
+                                </span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Unique Properties</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for property in dataset.get_unique_properties()|sort %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ property }}
+                                <span class="badge bg-success rounded-pill">
+                                    {% set count = dataset.material_records|selectattr('property_name', 'equalto', property)|list|length %}
+                                    {{ count }} record{% if count != 1 %}s{% endif %}
+                                </span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Data Sources Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>Data Source</th>
+                            <th>Count</th>
+                            <th>Percentage</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% set source_counts = {} %}
+                        {% for record in dataset.material_records %}
+                            {% if record.data_source %}
+                                {% set source = record.data_source.value %}
+                                {% if source_counts.update({source: source_counts.get(source, 0) + 1}) %}{% endif %}
+                            {% endif %}
+                        {% endfor %}
+                        {% for source, count in source_counts.items()|sort(attribute='1', reverse=True) %}
+                            <tr>
+                                <td><span class="badge bg-info">{{ source }}</span></td>
+                                <td>{{ count }}</td>
+                                <td>
+                                    <div class="progress" style="height: 25px;">
+                                        <div class="progress-bar" role="progressbar"
+                                             style="width: {{ (count / dataset.get_materials_count() * 100)|round(1) }}%"
+                                             aria-valuenow="{{ count }}" aria-valuemin="0" aria-valuemax="{{ dataset.get_materials_count() }}">
+                                            {{ (count / dataset.get_materials_count() * 100)|round(1) }}%
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Dataset Metadata</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">Description</dt>
+                        <dd class="col-sm-9">{{ dataset.ds_meta_data.description }}</dd>
+
+                        <dt class="col-sm-3">Publication Type</dt>
+                        <dd class="col-sm-9">{{ dataset.ds_meta_data.publication_type.name.replace('_', ' ').title() }}</dd>
+
+                        <dt class="col-sm-3">Publication DOI</dt>
+                        <dd class="col-sm-9">{{ dataset.ds_meta_data.publication_doi or '-' }}</dd>
+
+                        <dt class="col-sm-3">Dataset DOI</dt>
+                        <dd class="col-sm-9">{{ dataset.ds_meta_data.dataset_doi or '-' }}</dd>
+
+                        <dt class="col-sm-3">Tags</dt>
+                        <dd class="col-sm-9">
+                            {% if dataset.ds_meta_data.tags %}
+                                {% for tag in dataset.ds_meta_data.tags.split(',') %}
+                                    <span class="badge bg-secondary">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-3">CSV File Path</dt>
+                        <dd class="col-sm-9"><code>{{ dataset.csv_file_path or '-' }}</code></dd>
+
+                        <dt class="col-sm-3">Created At</dt>
+                        <dd class="col-sm-9">{{ dataset.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12 text-center">
+            <a href="{{ url_for('dataset.view_materials_dataset', dataset_id=dataset.id) }}" class="btn btn-primary">
+                <i data-feather="eye"></i> View Dataset
+            </a>
+            <a href="{{ url_for('dataset.search_materials', dataset_id=dataset.id) }}" class="btn btn-info">
+                <i data-feather="search"></i> Search Materials
+            </a>
+            <a href="{{ url_for('dataset.list_materials_datasets') }}" class="btn btn-secondary">
+                <i data-feather="arrow-left"></i> Back to List
+            </a>
+        </div>
+    </div>
+
+{% endblock %}

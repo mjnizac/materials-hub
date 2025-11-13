@@ -205,6 +205,14 @@ class MaterialsDatasetRepository(BaseRepository):
         """Count materials datasets for a user"""
         return self.model.query.filter_by(user_id=user_id).count()
 
+    def count_all(self) -> int:
+        """Count all materials datasets"""
+        return self.model.query.count()
+
+    def get_all(self):
+        """Get all materials datasets ordered by creation date (newest first)"""
+        return self.model.query.order_by(desc(self.model.created_at)).all()
+
 
 class MaterialRecordRepository(BaseRepository):
     def __init__(self):

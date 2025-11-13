@@ -208,22 +208,22 @@ def init_blueprint_api(api):
     api.add_resource(
         MaterialsDatasetUploadResource,
         "/api/v1/materials-datasets/<int:id>/upload",
-        endpoint="materials_dataset_upload"
+        endpoint="api_materials_dataset_upload"
     )
     api.add_resource(
         MaterialsDatasetStatisticsResource,
         "/api/v1/materials-datasets/<int:id>/statistics",
-        endpoint="materials_dataset_statistics"
+        endpoint="api_materials_dataset_statistics"
     )
 
     # MaterialRecord endpoints
     api.add_resource(
         MaterialRecordsResource,
         "/api/v1/materials-datasets/<int:dataset_id>/records",
-        endpoint="material_records"
+        endpoint="api_material_records"
     )
     api.add_resource(
         MaterialRecordsSearchResource,
         "/api/v1/materials-datasets/<int:dataset_id>/records/search",
-        endpoint="material_records_search"
+        endpoint="api_material_records_search"
     )
