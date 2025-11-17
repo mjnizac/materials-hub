@@ -1,7 +1,7 @@
-2025-11-17 17:12:05,196 - app.modules.dataset.routes - ERROR - Exception while create dataset data in Fakenodo Failed to create local deposition: (pymysql.err.ProgrammingError) (1146, "Table 'uvlhubdb.deposition' doesn't exist")
-[SQL: INSERT INTO deposition (dep_metadata, status, doi) VALUES (%(dep_metadata)s, %(status)s, %(doi)s)]
-[parameters: {'dep_metadata': '{"title": "dataset con csv", "upload_type": "dataset", "publication_type": null, "description": "subiendo un csv", "creators": [{"name": "ruiz, prueba"}], "keywords": ["uvlhub"], "access_right": "open", "license": "CC-BY-4.0"}', 'status': 'draft', 'doi': None}]
-(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-11-17 15:45:29,185 - app.modules.dataset.routes - ERROR - Exception while create dataset data in local (pymysql.err.DataError) (1406, "Data too long for column 'publication_doi' at row 1")
+[SQL: INSERT INTO ds_meta_data (deposition_id, title, description, publication_type, publication_doi, dataset_doi, tags, ds_metrics_id) VALUES (%(deposition_id)s, %(title)s, %(description)s, %(publication_type)s, %(publication_doi)s, %(dataset_doi)s, %(tags)s, %(ds_metrics_id)s)]
+[parameters: {'deposition_id': None, 'title': 'prueba de doi', 'description': 'dataset con doi', 'publication_type': 'NONE', 'publication_doi': 'https://zenodo.org/search?q=metadata.creators.person_or_org.name%3AGarc%C3%ADa-Pe%C3%B1alvo%2C%20Francisco%20Jos%C3%A9&l=list&p=1&s=10&sort=bestmatch', 'dataset_doi': None, 'tags': 'Tag 1', 'ds_metrics_id': None}]
+(Background on this error at: https://sqlalche.me/e/20/9h9h)
 Traceback (most recent call last):
   File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1961, in _exec_single_context
     self.dialect.do_execute(
@@ -26,17 +26,19 @@ Traceback (most recent call last):
     err.raise_mysql_exception(self._data)
   File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
     raise errorclass(errno, errval)
-pymysql.err.ProgrammingError: (1146, "Table 'uvlhubdb.deposition' doesn't exist")
+pymysql.err.DataError: (1406, "Data too long for column 'publication_doi' at row 1")
 
 The above exception was the direct cause of the following exception:
 
 Traceback (most recent call last):
-  File "/home/practica/Escritorio/materials-hub/app/modules/fakenodo/services.py", line 65, in create_new_deposition
-    new_deposition = self.deposition_repository.create_new_deposition(dep_metadata=metadata)
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/practica/Escritorio/materials-hub/app/modules/fakenodo/repositories.py", line 10, in create_new_deposition
-    return self.create(dep_metadata=dep_metadata)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/app/modules/dataset/routes.py", line 62, in create_dataset
+    dataset = dataset_service.create_from_form(form=form, current_user=current_user)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/app/modules/dataset/services.py", line 133, in create_from_form
+    raise exc
+  File "/home/practica/Escritorio/materials-hub/app/modules/dataset/services.py", line 103, in create_from_form
+    dsmetadata = self.dsmetadata_repository.create(**form.get_dsmetadata())
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/home/practica/Escritorio/materials-hub/core/repositories/BaseRepository.py", line 17, in create
     self.session.commit()
   File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 599, in commit
@@ -112,20 +114,7 @@ Traceback (most recent call last):
     err.raise_mysql_exception(self._data)
   File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
     raise errorclass(errno, errval)
-sqlalchemy.exc.ProgrammingError: (pymysql.err.ProgrammingError) (1146, "Table 'uvlhubdb.deposition' doesn't exist")
-[SQL: INSERT INTO deposition (dep_metadata, status, doi) VALUES (%(dep_metadata)s, %(status)s, %(doi)s)]
-[parameters: {'dep_metadata': '{"title": "dataset con csv", "upload_type": "dataset", "publication_type": null, "description": "subiendo un csv", "creators": [{"name": "ruiz, prueba"}], "keywords": ["uvlhub"], "access_right": "open", "license": "CC-BY-4.0"}', 'status': 'draft', 'doi': None}]
-(Background on this error at: https://sqlalche.me/e/20/f405)
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/home/practica/Escritorio/materials-hub/app/modules/dataset/routes.py", line 72, in create_dataset
-    fakenodo_response_json = fakenodo_service.create_new_deposition(dataset)
-                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/practica/Escritorio/materials-hub/app/modules/fakenodo/services.py", line 74, in create_new_deposition
-    raise Exception(f"Failed to create local deposition: {str(e)}")
-Exception: Failed to create local deposition: (pymysql.err.ProgrammingError) (1146, "Table 'uvlhubdb.deposition' doesn't exist")
-[SQL: INSERT INTO deposition (dep_metadata, status, doi) VALUES (%(dep_metadata)s, %(status)s, %(doi)s)]
-[parameters: {'dep_metadata': '{"title": "dataset con csv", "upload_type": "dataset", "publication_type": null, "description": "subiendo un csv", "creators": [{"name": "ruiz, prueba"}], "keywords": ["uvlhub"], "access_right": "open", "license": "CC-BY-4.0"}', 'status': 'draft', 'doi': None}]
-(Background on this error at: https://sqlalche.me/e/20/f405)
+sqlalchemy.exc.DataError: (pymysql.err.DataError) (1406, "Data too long for column 'publication_doi' at row 1")
+[SQL: INSERT INTO ds_meta_data (deposition_id, title, description, publication_type, publication_doi, dataset_doi, tags, ds_metrics_id) VALUES (%(deposition_id)s, %(title)s, %(description)s, %(publication_type)s, %(publication_doi)s, %(dataset_doi)s, %(tags)s, %(ds_metrics_id)s)]
+[parameters: {'deposition_id': None, 'title': 'prueba de doi', 'description': 'dataset con doi', 'publication_type': 'NONE', 'publication_doi': 'https://zenodo.org/search?q=metadata.creators.person_or_org.name%3AGarc%C3%ADa-Pe%C3%B1alvo%2C%20Francisco%20Jos%C3%A9&l=list&p=1&s=10&sort=bestmatch', 'dataset_doi': None, 'tags': 'Tag 1', 'ds_metrics_id': None}]
+(Background on this error at: https://sqlalche.me/e/20/9h9h)

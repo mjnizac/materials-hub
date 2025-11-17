@@ -1,112 +1,131 @@
-2025-11-01 20:43:02,386 - app - ERROR - Exception on /datasets/top-datasets [GET]
+2025-11-17 15:49:38,685 - app.modules.dataset.routes - ERROR - Exception while create dataset data in Fakenodo Failed to create local deposition: (pymysql.err.ProgrammingError) (1146, "Table 'uvlhubdb.deposition' doesn't exist")
+[SQL: INSERT INTO deposition (dep_metadata, status, doi) VALUES (%(dep_metadata)s, %(status)s, %(doi)s)]
+[parameters: {'dep_metadata': '{"title": "prueba de doi", "upload_type": "dataset", "publication_type": null, "description": "dataset con doi", "creators": [{"name": "ruiz, prueba"}], "keywords": ["Tag 1", "uvlhub"], "access_right": "open", "license": "CC-BY-4.0"}', 'status': 'draft', 'doi': None}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
 Traceback (most recent call last):
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask_restful/__init__.py", line 298, in error_router
-    return original_handler(e)
-           ^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-         ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask_login/utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/app/modules/dataset/routes.py", line 278, in view_top_datasets
-    datasets = dataset_service.get_top_datasets(limit=5)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/app/modules/dataset/services.py", line 144, in get_top_datasets
-    return self.repository.get_top_datasets(limit=limit)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AttributeError: 'DataSetRepository' object has no attribute 'get_top_datasets'
-2025-11-01 20:43:02,392 - app - ERROR - Internal Server Error: 500 Internal Server Error: The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.
-2025-11-01 20:48:39,952 - app - ERROR - Exception on /datasets/top-datasets [GET]
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1961, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 944, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/cursors.py", line 322, in _query
+    conn.query(q)
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/connections.py", line 563, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/connections.py", line 825, in _read_query_result
+    result.read()
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/connections.py", line 1199, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/connections.py", line 775, in _read_packet
+    packet.raise_for_error()
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.ProgrammingError: (1146, "Table 'uvlhubdb.deposition' doesn't exist")
+
+The above exception was the direct cause of the following exception:
+
 Traceback (most recent call last):
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask_restful/__init__.py", line 298, in error_router
-    return original_handler(e)
-           ^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-         ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask_login/utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/app/modules/dataset/routes.py", line 278, in view_top_datasets
-    datasets = dataset_service.get_top_datasets(limit=5)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/app/modules/dataset/services.py", line 144, in get_top_datasets
-    return self.repository.get_top_datasets(limit=limit)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AttributeError: 'DataSetRepository' object has no attribute 'get_top_datasets'
-2025-11-01 20:48:39,955 - app - ERROR - Internal Server Error: 500 Internal Server Error: The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.
-2025-11-01 20:49:33,319 - app - ERROR - Exception on /datasets/top-datasets [GET]
+  File "/home/practica/Escritorio/materials-hub/app/modules/fakenodo/services.py", line 65, in create_new_deposition
+    new_deposition = self.deposition_repository.create_new_deposition(dep_metadata=metadata)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/app/modules/fakenodo/repositories.py", line 10, in create_new_deposition
+    return self.create(dep_metadata=dep_metadata)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/core/repositories/BaseRepository.py", line 17, in create
+    self.session.commit()
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 599, in commit
+    return self._proxied.commit()
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2032, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 1313, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 1288, in _prepare_impl
+    self.session.flush()
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 4345, in flush
+    self._flush(objects)
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 4480, in _flush
+    with util.safe_reraise():
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 4441, in _flush
+    flush_context.execute()
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1413, in execute
+    return meth(
+           ^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1635, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1840, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1980, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2349, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1961, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 944, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/cursors.py", line 322, in _query
+    conn.query(q)
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/connections.py", line 563, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/connections.py", line 825, in _read_query_result
+    result.read()
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/connections.py", line 1199, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/connections.py", line 775, in _read_packet
+    packet.raise_for_error()
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+sqlalchemy.exc.ProgrammingError: (pymysql.err.ProgrammingError) (1146, "Table 'uvlhubdb.deposition' doesn't exist")
+[SQL: INSERT INTO deposition (dep_metadata, status, doi) VALUES (%(dep_metadata)s, %(status)s, %(doi)s)]
+[parameters: {'dep_metadata': '{"title": "prueba de doi", "upload_type": "dataset", "publication_type": null, "description": "dataset con doi", "creators": [{"name": "ruiz, prueba"}], "keywords": ["Tag 1", "uvlhub"], "access_right": "open", "license": "CC-BY-4.0"}', 'status': 'draft', 'doi': None}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+
+During handling of the above exception, another exception occurred:
+
 Traceback (most recent call last):
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask_restful/__init__.py", line 298, in error_router
-    return original_handler(e)
-           ^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-         ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask_login/utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/app/modules/dataset/routes.py", line 278, in view_top_datasets
-    datasets = dataset_service.get_top_datasets(limit=5)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/app/modules/dataset/services.py", line 144, in get_top_datasets
-    return self.repository.get_top_datasets(limit=limit)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AttributeError: 'DataSetRepository' object has no attribute 'get_top_datasets'
-2025-11-01 20:49:33,320 - app - ERROR - Internal Server Error: 500 Internal Server Error: The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.
-2025-11-01 20:52:50,258 - app - ERROR - Exception on /datasets/top-datasets [GET]
-Traceback (most recent call last):
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
-    response = self.full_dispatch_request()
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
-    rv = self.handle_user_exception(e)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask_restful/__init__.py", line 298, in error_router
-    return original_handler(e)
-           ^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
-    rv = self.dispatch_request()
-         ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
-    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/venv/lib/python3.12/site-packages/flask_login/utils.py", line 290, in decorated_view
-    return current_app.ensure_sync(func)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/app/modules/dataset/routes.py", line 278, in view_top_datasets
-    datasets = dataset_service.get_top_datasets(limit=5)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/juan-antonio/Escritorio/PROYECTO/syssoft-hub/app/modules/dataset/services.py", line 144, in get_top_datasets
-    return self.repository.get_top_datasets(limit=limit)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AttributeError: 'DataSetRepository' object has no attribute 'get_top_datasets'
-2025-11-01 20:52:50,264 - app - ERROR - Internal Server Error: 500 Internal Server Error: The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.
+  File "/home/practica/Escritorio/materials-hub/app/modules/dataset/routes.py", line 72, in create_dataset
+    fakenodo_response_json = fakenodo_service.create_new_deposition(dataset)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/practica/Escritorio/materials-hub/app/modules/fakenodo/services.py", line 74, in create_new_deposition
+    raise Exception(f"Failed to create local deposition: {str(e)}")
+Exception: Failed to create local deposition: (pymysql.err.ProgrammingError) (1146, "Table 'uvlhubdb.deposition' doesn't exist")
+[SQL: INSERT INTO deposition (dep_metadata, status, doi) VALUES (%(dep_metadata)s, %(status)s, %(doi)s)]
+[parameters: {'dep_metadata': '{"title": "prueba de doi", "upload_type": "dataset", "publication_type": null, "description": "dataset con doi", "creators": [{"name": "ruiz, prueba"}], "keywords": ["Tag 1", "uvlhub"], "access_right": "open", "license": "CC-BY-4.0"}', 'status': 'draft', 'doi': None}]
+(Background on this error at: https://sqlalche.me/e/20/f405)

@@ -1,6 +1,6 @@
-2025-11-17 17:12:05,196 - app.modules.dataset.routes - ERROR - Exception while create dataset data in Fakenodo Failed to create local deposition: (pymysql.err.ProgrammingError) (1146, "Table 'uvlhubdb.deposition' doesn't exist")
+2025-11-11 01:31:30,518 - app.modules.dataset.routes - ERROR - Exception while create dataset data in Fakenodo Failed to create local deposition: (pymysql.err.ProgrammingError) (1146, "Table 'uvlhubdb.deposition' doesn't exist")
 [SQL: INSERT INTO deposition (dep_metadata, status, doi) VALUES (%(dep_metadata)s, %(status)s, %(doi)s)]
-[parameters: {'dep_metadata': '{"title": "dataset con csv", "upload_type": "dataset", "publication_type": null, "description": "subiendo un csv", "creators": [{"name": "ruiz, prueba"}], "keywords": ["uvlhub"], "access_right": "open", "license": "CC-BY-4.0"}', 'status': 'draft', 'doi': None}]
+[parameters: {'dep_metadata': '{"title": "Es mi primer dataset", "upload_type": "dataset", "publication_type": null, "description": "prueba subiendo datset", "creators": [{"name": "ruiz, prueba"}, {"name": "maria", "affiliation": "dea"}], "keywords": ["uvlhub"], "access_right": "open", "license": "CC-BY-4.0"}', 'status': 'draft', 'doi': None}]
 (Background on this error at: https://sqlalche.me/e/20/f405)
 Traceback (most recent call last):
   File "/home/practica/Escritorio/materials-hub/venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1961, in _exec_single_context
@@ -114,7 +114,7 @@ Traceback (most recent call last):
     raise errorclass(errno, errval)
 sqlalchemy.exc.ProgrammingError: (pymysql.err.ProgrammingError) (1146, "Table 'uvlhubdb.deposition' doesn't exist")
 [SQL: INSERT INTO deposition (dep_metadata, status, doi) VALUES (%(dep_metadata)s, %(status)s, %(doi)s)]
-[parameters: {'dep_metadata': '{"title": "dataset con csv", "upload_type": "dataset", "publication_type": null, "description": "subiendo un csv", "creators": [{"name": "ruiz, prueba"}], "keywords": ["uvlhub"], "access_right": "open", "license": "CC-BY-4.0"}', 'status': 'draft', 'doi': None}]
+[parameters: {'dep_metadata': '{"title": "Es mi primer dataset", "upload_type": "dataset", "publication_type": null, "description": "prueba subiendo datset", "creators": [{"name": "ruiz, prueba"}, {"name": "maria", "affiliation": "dea"}], "keywords": ["uvlhub"], "access_right": "open", "license": "CC-BY-4.0"}', 'status': 'draft', 'doi': None}]
 (Background on this error at: https://sqlalche.me/e/20/f405)
 
 During handling of the above exception, another exception occurred:
@@ -127,5 +127,5 @@ Traceback (most recent call last):
     raise Exception(f"Failed to create local deposition: {str(e)}")
 Exception: Failed to create local deposition: (pymysql.err.ProgrammingError) (1146, "Table 'uvlhubdb.deposition' doesn't exist")
 [SQL: INSERT INTO deposition (dep_metadata, status, doi) VALUES (%(dep_metadata)s, %(status)s, %(doi)s)]
-[parameters: {'dep_metadata': '{"title": "dataset con csv", "upload_type": "dataset", "publication_type": null, "description": "subiendo un csv", "creators": [{"name": "ruiz, prueba"}], "keywords": ["uvlhub"], "access_right": "open", "license": "CC-BY-4.0"}', 'status': 'draft', 'doi': None}]
+[parameters: {'dep_metadata': '{"title": "Es mi primer dataset", "upload_type": "dataset", "publication_type": null, "description": "prueba subiendo datset", "creators": [{"name": "ruiz, prueba"}, {"name": "maria", "affiliation": "dea"}], "keywords": ["uvlhub"], "access_right": "open", "license": "CC-BY-4.0"}', 'status': 'draft', 'doi': None}]
 (Background on this error at: https://sqlalche.me/e/20/f405)
