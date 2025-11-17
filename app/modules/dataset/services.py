@@ -1,3 +1,4 @@
+import csv
 import hashlib
 import logging
 import os
@@ -220,3 +221,284 @@ class SizeService:
             return f"{round(size / (1024 ** 2), 2)} MB"
         else:
             return f"{round(size / (1024 ** 3), 2)} GB"
+
+
+class MaterialsDatasetService:
+    """Service for handling MaterialsDataset operations including CSV parsing"""
+
+    # Expected CSV columns (exact names)
+    REQUIRED_COLUMNS = [
+        'material_name',
+        'property_name',
+        'property_value'
+    ]
+
+    OPTIONAL_COLUMNS = [
+        'chemical_formula',
+        'structure_type',
+        'composition_method',
+        'property_unit',
+        'temperature',
+        'pressure',
+        'data_source',
+        'uncertainty',
+        'description'
+    ]
+
+    def __init__(self):
+        from app.modules.dataset.repositories import MaterialsDatasetRepository, MaterialRecordRepository
+        self.materials_dataset_repository = MaterialsDatasetRepository()
+        self.material_record_repository = MaterialRecordRepository()
+
+    def validate_csv_columns(self, csv_columns: list) -> dict:
+        """
+        Validates that CSV has required columns and identifies optional ones.
+
+        Args:
+            csv_columns: List of column names from CSV header
+
+        Returns:
+            dict with 'valid' (bool), 'missing_required' (list), 'extra_columns' (list)
+        """
+        csv_columns_set = set(csv_columns)
+        required_set = set(self.REQUIRED_COLUMNS)
+        optional_set = set(self.OPTIONAL_COLUMNS)
+        all_valid_columns = required_set | optional_set
+
+        # Check for missing required columns
+        missing_required = list(required_set - csv_columns_set)
+
+        # Check for extra/unknown columns
+        extra_columns = list(csv_columns_set - all_valid_columns)
+
+        is_valid = len(missing_required) == 0
+
+        return {
+            'valid': is_valid,
+            'missing_required': missing_required,
+            'extra_columns': extra_columns,
+            'message': self._build_validation_message(missing_required, extra_columns)
+        }
+
+    def _build_validation_message(self, missing: list, extra: list) -> str:
+        """Build a human-readable validation message"""
+        messages = []
+
+        if missing:
+            messages.append(f"Missing required columns: {', '.join(missing)}")
+
+        if extra:
+            messages.append(f"Unknown columns (will be ignored): {', '.join(extra)}")
+
+        if not messages:
+            return "CSV structure is valid"
+
+        return "; ".join(messages)
+
+    def parse_csv_file(self, csv_file_path: str, encoding: str = 'utf-8') -> dict:
+        """
+        Parses a CSV file and returns data ready to create MaterialRecords.
+
+        Args:
+            csv_file_path: Path to the CSV file
+            encoding: File encoding (default: utf-8)
+
+        Returns:
+            dict with:
+                - 'success': bool
+                - 'data': list of dicts (rows) if successful
+                - 'validation': validation result
+                - 'error': error message if failed
+                - 'rows_parsed': number of rows parsed
+        """
+        result = {
+            'success': False,
+            'data': [],
+            'validation': None,
+            'error': None,
+            'rows_parsed': 0
+        }
+
+        try:
+            # Check if file exists
+            if not os.path.exists(csv_file_path):
+                result['error'] = f"CSV file not found: {csv_file_path}"
+                return result
+
+            # Read and validate CSV
+            with open(csv_file_path, 'r', encoding=encoding) as csv_file:
+                csv_reader = csv.DictReader(csv_file)
+
+                # Validate columns
+                columns = csv_reader.fieldnames
+                validation = self.validate_csv_columns(columns)
+                result['validation'] = validation
+
+                if not validation['valid']:
+                    result['error'] = validation['message']
+                    return result
+
+                # Parse rows
+                rows_data = []
+                for row_num, row in enumerate(csv_reader, start=2):  # start=2 because row 1 is header
+                    try:
+                        parsed_row = self._parse_csv_row(row, row_num)
+                        rows_data.append(parsed_row)
+                    except ValueError as e:
+                        logger.warning(f"Skipping row {row_num}: {str(e)}")
+                        continue
+
+                result['data'] = rows_data
+                result['rows_parsed'] = len(rows_data)
+                result['success'] = True
+
+        except UnicodeDecodeError:
+            result['error'] = f"Encoding error. Try different encoding (current: {encoding})"
+        except Exception as e:
+            result['error'] = f"Error parsing CSV: {str(e)}"
+            logger.error(f"CSV parsing error: {str(e)}", exc_info=True)
+
+        return result
+
+    def _parse_csv_row(self, row: dict, row_num: int) -> dict:
+        """
+        Parses a single CSV row and converts data types.
+
+        Args:
+            row: Dictionary from csv.DictReader
+            row_num: Row number for error messages
+
+        Returns:
+            dict with parsed and typed data
+
+        Raises:
+            ValueError: If required fields are missing or invalid
+        """
+        from app.modules.dataset.models import DataSource
+
+        # Check required fields
+        if not row.get('material_name', '').strip():
+            raise ValueError(f"Row {row_num}: material_name is required")
+        if not row.get('property_name', '').strip():
+            raise ValueError(f"Row {row_num}: property_name is required")
+        if not row.get('property_value', '').strip():
+            raise ValueError(f"Row {row_num}: property_value is required")
+
+        parsed_data = {
+            # Required fields
+            'material_name': row['material_name'].strip(),
+            'property_name': row['property_name'].strip(),
+            'property_value': row['property_value'].strip(),
+
+            # Optional string fields
+            'chemical_formula': row.get('chemical_formula', '').strip() or None,
+            'structure_type': row.get('structure_type', '').strip() or None,
+            'composition_method': row.get('composition_method', '').strip() or None,
+            'property_unit': row.get('property_unit', '').strip() or None,
+            'description': row.get('description', '').strip() or None,
+        }
+
+        # Parse temperature (Integer)
+        temp_value = row.get('temperature', '').strip()
+        if temp_value:
+            try:
+                parsed_data['temperature'] = int(temp_value)
+            except ValueError:
+                logger.warning(f"Row {row_num}: Invalid temperature value '{temp_value}', setting to None")
+                parsed_data['temperature'] = None
+        else:
+            parsed_data['temperature'] = None
+
+        # Parse pressure (Integer)
+        pressure_value = row.get('pressure', '').strip()
+        if pressure_value:
+            try:
+                parsed_data['pressure'] = int(pressure_value)
+            except ValueError:
+                logger.warning(f"Row {row_num}: Invalid pressure value '{pressure_value}', setting to None")
+                parsed_data['pressure'] = None
+        else:
+            parsed_data['pressure'] = None
+
+        # Parse uncertainty (Integer)
+        uncertainty_value = row.get('uncertainty', '').strip()
+        if uncertainty_value:
+            try:
+                parsed_data['uncertainty'] = int(uncertainty_value)
+            except ValueError:
+                logger.warning(f"Row {row_num}: Invalid uncertainty value '{uncertainty_value}', setting to None")
+                parsed_data['uncertainty'] = None
+        else:
+            parsed_data['uncertainty'] = None
+
+        # Parse data_source (Enum)
+        data_source_value = row.get('data_source', '').strip().upper()
+        if data_source_value:
+            try:
+                parsed_data['data_source'] = DataSource[data_source_value]
+            except KeyError:
+                valid_sources = ', '.join([e.name for e in DataSource])
+                logger.warning(
+                    f"Row {row_num}: Invalid data_source '{data_source_value}'. "
+                    f"Valid options: {valid_sources}. Setting to None"
+                )
+                parsed_data['data_source'] = None
+        else:
+            parsed_data['data_source'] = None
+
+        return parsed_data
+
+    def create_material_records_from_csv(self, materials_dataset, csv_file_path: str) -> dict:
+        """
+        Parses CSV file and creates MaterialRecord instances linked to the MaterialsDataset.
+
+        Args:
+            materials_dataset: MaterialsDataset instance to link records to
+            csv_file_path: Path to the CSV file
+
+        Returns:
+            dict with:
+                - 'success': bool
+                - 'records_created': int
+                - 'error': str (if failed)
+        """
+        from app import db
+        from app.modules.dataset.models import MaterialRecord
+
+        # Parse the CSV
+        parse_result = self.parse_csv_file(csv_file_path)
+
+        if not parse_result['success']:
+            return {
+                'success': False,
+                'records_created': 0,
+                'error': parse_result['error']
+            }
+
+        # Create MaterialRecord instances
+        records_created = 0
+        try:
+            for row_data in parse_result['data']:
+                material_record = MaterialRecord(
+                    materials_dataset_id=materials_dataset.id,
+                    **row_data
+                )
+                db.session.add(material_record)
+                records_created += 1
+
+            db.session.commit()
+
+            return {
+                'success': True,
+                'records_created': records_created,
+                'error': None
+            }
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error creating MaterialRecords: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'records_created': 0,
+                'error': f"Database error: {str(e)}"
+            }

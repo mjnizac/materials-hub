@@ -1,0 +1,16 @@
+material_name,chemical_formula,structure_type,composition_method,property_name,property_value,property_unit,temperature,pressure,data_source,uncertainty,description
+Al2O3,Al2O3,Corundum,Sol-gel,density,3.95,g/cm3,298,101325,EXPERIMENTAL,5,High purity alumina synthesized by sol-gel method
+Al2O3,Al2O3,Corundum,Sol-gel,hardness,9,Mohs,298,101325,EXPERIMENTAL,1,Hardness measured using Mohs scale
+SiO2,SiO2,Quartz,Hydrothermal,density,2.65,g/cm3,298,101325,LITERATURE,,Quartz density from reference tables
+SiO2,SiO2,Quartz,Hydrothermal,hardness,7,Mohs,298,101325,LITERATURE,,From Mohs scale reference
+TiO2,TiO2,Rutile,Chemical vapor deposition,refractive_index,2.61,,298,,COMPUTATIONAL,2,DFT calculation using VASP
+TiO2,TiO2,Rutile,Chemical vapor deposition,bandgap,3.0,eV,298,,COMPUTATIONAL,1,Optical bandgap from DFT
+ZrO2,ZrO2,Cubic,Precipitation,thermal_conductivity,2.5,W/mK,1273,101325,EXPERIMENTAL,10,High temperature measurement
+ZrO2,ZrO2,Cubic,Precipitation,density,6.1,g/cm3,298,101325,DATABASE,,From ICSD database
+Y2O3,Y2O3,Cubic,Solid-state reaction,melting_point,2439,°C,,,LITERATURE,,From phase diagram
+Y2O3,Y2O3,Cubic,Solid-state reaction,thermal_expansion,7.8,10^-6/K,1000,,EXPERIMENTAL,3,Linear thermal expansion coefficient
+MgO,MgO,Halite,Calcination,density,3.58,g/cm3,298,101325,EXPERIMENTAL,2,Synthesized from Mg(OH)2
+MgO,MgO,Halite,Calcination,elastic_modulus,250,GPa,298,101325,EXPERIMENTAL,15,Young's modulus from nanoindentation
+CaO,CaO,Halite,Thermal decomposition,density,3.34,g/cm3,298,101325,DATABASE,,From crystallographic database
+BaTiO3,BaTiO3,Perovskite,Solid-state reaction,dielectric_constant,1700,,298,,EXPERIMENTAL,50,Relative permittivity at room temperature
+BaTiO3,BaTiO3,Perovskite,Solid-state reaction,curie_temperature,120,°C,,,EXPERIMENTAL,5,Phase transition temperature

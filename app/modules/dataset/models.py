@@ -29,6 +29,14 @@ class PublicationType(Enum):
     OTHER = "other"
 
 
+class DataSource(Enum):
+    EXPERIMENTAL = "experimental"
+    COMPUTATIONAL = "computational"
+    LITERATURE = "literature"
+    DATABASE = "database"
+    OTHER = "other"
+
+
 class Author(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
@@ -64,21 +72,21 @@ class DSMetaData(db.Model):
     authors = db.relationship("Author", backref="ds_meta_data", lazy=True, cascade="all, delete")
 
 
-class DataSet(db.Model):
+# Base abstract class for all dataset types
+class BaseDataset(db.Model):
+    __abstract__ = True
+
+    # Common fields for all dataset types
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-
     ds_meta_data_id = db.Column(db.Integer, db.ForeignKey("ds_meta_data.id"), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    ds_meta_data = db.relationship("DSMetaData", backref=db.backref("data_set", uselist=False))
-    feature_models = db.relationship("FeatureModel", backref="data_set", lazy=True, cascade="all, delete")
+    # Common relationships (defined in subclasses with specific backrefs)
 
+    # Common methods
     def name(self):
         return self.ds_meta_data.title
-
-    def files(self):
-        return [file for fm in self.feature_models for file in fm.files]
 
     def delete(self):
         db.session.delete(self)
@@ -90,23 +98,33 @@ class DataSet(db.Model):
     def get_zenodo_url(self):
         return f"https://zenodo.org/record/{self.ds_meta_data.deposition_id}" if self.ds_meta_data.dataset_doi else None
 
+    def get_uvlhub_doi(self):
+        from app.modules.dataset.services import DataSetService
+        return DataSetService().get_uvlhub_doi(self)
+
+    # Abstract methods to be implemented by subclasses
+    def validate(self):
+        """Validation specific to dataset type"""
+        raise NotImplementedError("Subclasses must implement validate()")
+
+    def files(self):
+        """Get files associated with this dataset"""
+        raise NotImplementedError("Subclasses must implement files()")
+
     def get_files_count(self):
-        return sum(len(fm.files) for fm in self.feature_models)
+        """Get count of files in this dataset"""
+        raise NotImplementedError("Subclasses must implement get_files_count()")
 
     def get_file_total_size(self):
-        return sum(file.size for fm in self.feature_models for file in fm.files)
+        """Get total size of all files"""
+        raise NotImplementedError("Subclasses must implement get_file_total_size()")
 
     def get_file_total_size_for_human(self):
         from app.modules.dataset.services import SizeService
-
         return SizeService().get_human_readable_size(self.get_file_total_size())
 
-    def get_uvlhub_doi(self):
-        from app.modules.dataset.services import DataSetService
-
-        return DataSetService().get_uvlhub_doi(self)
-
     def to_dict(self):
+        """Base dictionary representation"""
         return {
             "title": self.ds_meta_data.title,
             "id": self.id,
@@ -121,14 +139,186 @@ class DataSet(db.Model):
             "url": self.get_uvlhub_doi(),
             "download": f'{request.host_url.rstrip("/")}/dataset/download/{self.id}',
             "zenodo": self.get_zenodo_url(),
+        }
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}<{self.id}>"
+
+
+# UVL-specific dataset (original DataSet functionality)
+class UVLDataset(BaseDataset):
+    __tablename__ = 'data_set'  # Keep original table name for backward compatibility
+
+    # Relationships specific to UVL datasets
+    ds_meta_data = db.relationship("DSMetaData", backref=db.backref("data_set", uselist=False))
+    feature_models = db.relationship("FeatureModel", backref="data_set", lazy=True, cascade="all, delete")
+
+    def files(self):
+        """Get all UVL files from feature models"""
+        return [file for fm in self.feature_models for file in fm.files]
+
+    def get_files_count(self):
+        """Count files across all feature models"""
+        return sum(len(fm.files) for fm in self.feature_models)
+
+    def get_file_total_size(self):
+        """Calculate total size of all UVL files"""
+        return sum(file.size for fm in self.feature_models for file in fm.files)
+
+    def validate(self):
+        """Validate UVL dataset structure"""
+        # Validations specific to UVL:
+        # - Verify feature models exist
+        # - Check UVL file format
+        # - Validate feature model metadata
+        if not self.feature_models:
+            raise ValueError("UVL dataset must have at least one feature model")
+
+        for fm in self.feature_models:
+            if not fm.fm_meta_data:
+                raise ValueError(f"Feature model {fm.id} is missing metadata")
+
+        return True
+
+    def to_dict(self):
+        """Extended dictionary with UVL-specific data"""
+        base_dict = super().to_dict()
+        base_dict.update({
             "files": [file.to_dict() for fm in self.feature_models for file in fm.files],
             "files_count": self.get_files_count(),
             "total_size_in_bytes": self.get_file_total_size(),
             "total_size_in_human_format": self.get_file_total_size_for_human(),
+            "dataset_type": "uvl"
+        })
+        return base_dict
+
+
+# Material record model - represents a single row in the materials CSV
+class MaterialRecord(db.Model):
+    __tablename__ = 'material_record'
+
+    id = db.Column(db.Integer, primary_key=True)
+    materials_dataset_id = db.Column(db.Integer, db.ForeignKey("materials_dataset.id"), nullable=False)
+
+    # CSV column fields
+    material_name = db.Column(db.String(256), nullable=False)
+    chemical_formula = db.Column(db.String(256))
+    structure_type = db.Column(db.String(256))
+    composition_method = db.Column(db.String(256))
+    property_name = db.Column(db.String(256), nullable=False)
+    property_value = db.Column(db.String(256), nullable=False)
+    property_unit = db.Column(db.String(128))
+    temperature = db.Column(db.Integer)
+    pressure = db.Column(db.Integer)
+    data_source = db.Column(SQLAlchemyEnum(DataSource))
+    uncertainty = db.Column(db.Integer)
+    description = db.Column(db.Text)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "material_name": self.material_name,
+            "chemical_formula": self.chemical_formula,
+            "structure_type": self.structure_type,
+            "composition_method": self.composition_method,
+            "property_name": self.property_name,
+            "property_value": self.property_value,
+            "property_unit": self.property_unit,
+            "temperature": self.temperature,
+            "pressure": self.pressure,
+            "data_source": self.data_source.value if self.data_source else None,
+            "uncertainty": self.uncertainty,
+            "description": self.description,
         }
 
     def __repr__(self):
-        return f"DataSet<{self.id}>"
+        return f"MaterialRecord<{self.id}: {self.material_name} - {self.property_name}>"
+
+
+# Materials-specific dataset (for CSV materials data)
+class MaterialsDataset(BaseDataset):
+    __tablename__ = 'materials_dataset'
+
+    # Fields specific to materials datasets
+    csv_file_path = db.Column(db.String(512))
+
+    # Relationships specific to Materials datasets
+    user = db.relationship("User", backref=db.backref("materials_datasets", lazy=True))
+    ds_meta_data = db.relationship("DSMetaData", backref=db.backref("materials_dataset", uselist=False))
+    material_records = db.relationship("MaterialRecord", backref="materials_dataset", lazy=True, cascade="all, delete")
+
+    def files(self):
+        """Get CSV files for materials dataset"""
+        # TODO: Implement file retrieval for materials datasets
+        # This will depend on how you store CSV files
+        return []
+
+    def get_files_count(self):
+        """Count CSV files in materials dataset"""
+        return len(self.files())
+
+    def get_file_total_size(self):
+        """Calculate total size of CSV files"""
+        # TODO: Implement size calculation for materials files
+        return 0
+
+    def get_materials_count(self):
+        """Get count of material records in this dataset"""
+        return len(self.material_records)
+
+    def get_unique_materials(self):
+        """Get unique material names in this dataset"""
+        return list(set(record.material_name for record in self.material_records))
+
+    def get_unique_properties(self):
+        """Get unique property names measured in this dataset"""
+        return list(set(record.property_name for record in self.material_records))
+
+    def validate(self):
+        """Validate materials dataset structure"""
+        # Validations specific to materials CSV:
+        # - Verify material records exist
+        # - Validate required fields in records
+        # - Check data consistency
+
+        if not self.csv_file_path:
+            raise ValueError("Materials dataset must have a CSV file path")
+
+        if not self.material_records or len(self.material_records) == 0:
+            raise ValueError("Materials dataset must have at least one material record")
+
+        # Validate that all records have required fields
+        for record in self.material_records:
+            if not record.material_name:
+                raise ValueError(f"Material record {record.id} is missing material_name")
+            if not record.property_name:
+                raise ValueError(f"Material record {record.id} is missing property_name")
+            if not record.property_value:
+                raise ValueError(f"Material record {record.id} is missing property_value")
+
+        return True
+
+    def to_dict(self):
+        """Extended dictionary with materials-specific data"""
+        base_dict = super().to_dict()
+        base_dict.update({
+            "csv_file_path": self.csv_file_path,
+            "materials_count": self.get_materials_count(),
+            "unique_materials": self.get_unique_materials(),
+            "unique_properties": self.get_unique_properties(),
+            "material_records": [record.to_dict() for record in self.material_records],
+            "files": [file.to_dict() for file in self.files()] if self.files() else [],
+            "files_count": self.get_files_count(),
+            "total_size_in_bytes": self.get_file_total_size(),
+            "total_size_in_human_format": self.get_file_total_size_for_human(),
+            "dataset_type": "materials"
+        })
+        return base_dict
+
+
+# Compatibility alias: Keep DataSet pointing to UVLDataset for backward compatibility
+# This is just a type alias, not a separate table
+DataSet = UVLDataset
 
 
 class DSDownloadRecord(db.Model):

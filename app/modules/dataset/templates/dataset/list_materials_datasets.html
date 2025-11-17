@@ -1,0 +1,85 @@
+{% extends "base_template.html" %}
+
+{% block title %}My Materials Datasets{% endblock %}
+
+{% block content %}
+
+    <h1 class="h3 mb-3">My Materials Datasets</h1>
+
+    {% if datasets %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Materials Count</th>
+                            <th>Records</th>
+                            <th>Publication Type</th>
+                            <th>Options</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for dataset in datasets %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('dataset.view_materials_dataset', dataset_id=dataset.id) }}">
+                                        {{ dataset.ds_meta_data.title }}
+                                    </a>
+                                </td>
+                                <td>{{ dataset.ds_meta_data.description[:80] }}{% if dataset.ds_meta_data.description|length > 80 %}...{% endif %}</td>
+                                <td>
+                                    <span class="badge bg-primary">
+                                        {{ dataset.get_unique_materials()|length }} materials
+                                    </span>
+                                </td>
+                                <td>{{ dataset.get_materials_count() }} records</td>
+                                <td>{{ dataset.ds_meta_data.publication_type.name.replace('_', ' ').title() }}</td>
+                                <td>
+                                    <a href="{{ url_for('dataset.view_materials_dataset', dataset_id=dataset.id) }}" title="View details">
+                                        <i data-feather="eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('dataset.materials_dataset_statistics', dataset_id=dataset.id) }}" title="View statistics">
+                                        <i data-feather="bar-chart-2"></i>
+                                    </a>
+                                    <a href="{{ url_for('dataset.upload_materials_csv', dataset_id=dataset.id) }}" title="Upload CSV">
+                                        <i data-feather="upload"></i>
+                                    </a>
+                                    <a href="{{ url_for('dataset.search_materials', dataset_id=dataset.id) }}" title="Search materials">
+                                        <i data-feather="search"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="col-12 col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">No materials datasets found</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        You have not created any materials dataset yet. Materials datasets allow you to store and manage material properties data in CSV format.
+                    </p>
+                    <p class="card-text">
+                        <strong>Features:</strong>
+                    </p>
+                    <ul>
+                        <li>Upload CSV files with material properties</li>
+                        <li>Search and filter materials</li>
+                        <li>View statistics and unique materials</li>
+                        <li>Track multiple properties per material</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+{% endblock %}

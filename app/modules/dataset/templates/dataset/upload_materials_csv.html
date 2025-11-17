@@ -1,0 +1,159 @@
+{% extends "base_template.html" %}
+
+{% block title %}Upload CSV - {{ dataset.ds_meta_data.title }}{% endblock %}
+
+{% block content %}
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Upload CSV File</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Dataset: {{ dataset.ds_meta_data.title }}</h6>
+                    <p class="text-muted">{{ dataset.ds_meta_data.description }}</p>
+
+                    <hr>
+
+                    <div class="alert alert-info" role="alert">
+                        <h6 class="alert-heading"><i data-feather="info"></i> CSV Format Requirements</h6>
+                        <p><strong>Required columns:</strong></p>
+                        <ul>
+                            <li><code>material_name</code> - Name of the material</li>
+                            <li><code>property_name</code> - Name of the property being measured</li>
+                            <li><code>property_value</code> - Value of the property</li>
+                        </ul>
+                        <p><strong>Optional columns:</strong></p>
+                        <ul>
+                            <li><code>chemical_formula</code> - Chemical formula</li>
+                            <li><code>structure_type</code> - Crystal structure type</li>
+                            <li><code>composition_method</code> - How the material was composed</li>
+                            <li><code>property_unit</code> - Unit of measurement</li>
+                            <li><code>temperature</code> - Temperature in Kelvin</li>
+                            <li><code>pressure</code> - Pressure in Pascals</li>
+                            <li><code>data_source</code> - Source (experimental, computational, literature, database, other)</li>
+                            <li><code>uncertainty</code> - Measurement uncertainty</li>
+                            <li><code>description</code> - Additional description</li>
+                        </ul>
+                    </div>
+
+                    <form id="csvUploadForm" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="csvFile" class="form-label">Select CSV File</label>
+                            <input class="form-control" type="file" id="csvFile" name="file" accept=".csv" required>
+                            <div class="form-text">Maximum file size: 10MB</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <button type="submit" class="btn btn-primary" id="uploadBtn">
+                                <i data-feather="upload"></i> Upload CSV
+                            </button>
+                            <a href="{{ url_for('dataset.view_materials_dataset', dataset_id=dataset.id) }}" class="btn btn-secondary">
+                                <i data-feather="arrow-left"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+
+                    <div id="uploadProgress" class="mt-3" style="display: none;">
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                        </div>
+                        <p class="text-center mt-2">Uploading and parsing CSV...</p>
+                    </div>
+
+                    <div id="uploadResult" class="mt-3"></div>
+                </div>
+            </div>
+
+            <!-- Example CSV -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Example CSV</h6>
+                </div>
+                <div class="card-body">
+                    <pre class="bg-light p-3"><code>material_name,chemical_formula,structure_type,composition_method,property_name,property_value,property_unit,temperature,pressure,data_source,uncertainty,description
+Alumina,Al2O3,Corundum,Sintering,density,3.95,g/cm³,298,101325,experimental,0.02,High-purity alumina ceramic
+Alumina,Al2O3,Corundum,Sintering,hardness,9.0,Mohs,298,101325,literature,,Mohs hardness scale
+Silicon Carbide,SiC,Hexagonal,Hot Pressing,youngs_modulus,410,GPa,298,101325,computational,10,DFT calculated value</code></pre>
+                    <a href="data:text/csv;charset=utf-8,material_name%2Cchemical_formula%2Cstructure_type%2Ccomposition_method%2Cproperty_name%2Cproperty_value%2Cproperty_unit%2Ctemperature%2Cpressure%2Cdata_source%2Cuncertainty%2Cdescription%0AAlumina%2CAl2O3%2CCorundum%2CSintering%2Cdensity%2C3.95%2Cg%2Fcm%C2%B3%2C298%2C101325%2Cexperimental%2C0.02%2CHigh-purity%20alumina%20ceramic%0AAlumina%2CAl2O3%2CCorundum%2CSintering%2Chardness%2C9.0%2CMohs%2C298%2C101325%2Cliterature%2C%2CMohs%20hardness%20scale" download="example_materials.csv" class="btn btn-sm btn-info">
+                        <i data-feather="download"></i> Download Example CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('csvUploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+
+            if (!file.name.endsWith('.csv')) {
+                alert('Please select a CSV file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Show progress
+            document.getElementById('uploadProgress').style.display = 'block';
+            document.getElementById('uploadResult').innerHTML = '';
+            document.getElementById('uploadBtn').disabled = true;
+
+            fetch('{{ url_for("dataset.upload_materials_csv", dataset_id=dataset.id) }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('uploadProgress').style.display = 'none';
+                document.getElementById('uploadBtn').disabled = false;
+
+                if (data.message === 'CSV uploaded and parsed successfully') {
+                    document.getElementById('uploadResult').innerHTML = `
+                        <div class="alert alert-success" role="alert">
+                            <h6 class="alert-heading"><i data-feather="check-circle"></i> Success!</h6>
+                            <p>${data.message}</p>
+                            <p><strong>Records created:</strong> ${data.records_created}</p>
+                            <hr>
+                            <a href="{{ url_for('dataset.view_materials_dataset', dataset_id=dataset.id) }}" class="btn btn-sm btn-primary">
+                                View Dataset
+                            </a>
+                        </div>
+                    `;
+                    feather.replace();
+                } else {
+                    document.getElementById('uploadResult').innerHTML = `
+                        <div class="alert alert-danger" role="alert">
+                            <h6 class="alert-heading"><i data-feather="alert-circle"></i> Error</h6>
+                            <p>${data.message}</p>
+                            ${data.error ? '<p><strong>Details:</strong> ' + data.error + '</p>' : ''}
+                        </div>
+                    `;
+                    feather.replace();
+                }
+            })
+            .catch(error => {
+                document.getElementById('uploadProgress').style.display = 'none';
+                document.getElementById('uploadBtn').disabled = false;
+                document.getElementById('uploadResult').innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        <h6 class="alert-heading"><i data-feather="alert-circle"></i> Error</h6>
+                        <p>An error occurred while uploading the file: ${error.message}</p>
+                    </div>
+                `;
+                feather.replace();
+            });
+        });
+    </script>
+
+{% endblock %}

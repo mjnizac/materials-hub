@@ -1,0 +1,283 @@
+{% extends "base_template.html" %}
+
+{% block title %}View materials dataset{% endblock %}
+
+{% block content %}
+
+<div class="row mb-3">
+    <div class="col-6">
+        <a href="/" class="btn btn-primary btn-sm" id="search" style="border-radius: 5px;">
+            <i data-feather="search" class="center-button-icon"></i>
+            Explore more datasets
+        </a>
+    </div>
+</div>
+
+<div class="row">
+
+    <div class="col-xl-8 col-lg-12 col-md-12 col-sm-12">
+
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h1><b>{{ dataset.ds_meta_data.title }}</b></h1>
+                    <div>
+                        <span class="badge bg-primary">Materials Dataset</span>
+                    </div>
+                </div>
+                <p class="text-secondary">{{ dataset.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+
+                <div class="row mb-4">
+                    <div class="col-md-4 col-12">
+                        <span class="text-secondary">
+                            Description
+                        </span>
+                    </div>
+                    <div class="col-md-8 col-12">
+                        <p class="card-text">{{ dataset.ds_meta_data.description }}</p>
+                    </div>
+                </div>
+
+                <div class="row mb-2">
+                    <div class="col-md-4 col-12">
+                        <span class="text-secondary">
+                            Uploaded by
+                        </span>
+                    </div>
+                    <div class="col-md-8 col-12">
+                        <a href="#">{{ dataset.user.profile.surname }}, {{ dataset.user.profile.name }}</a>
+                    </div>
+                </div>
+
+                <div class="row mb-2">
+                    <div class="col-md-4 col-12">
+                        <span class="text-secondary">
+                            Authors
+                        </span>
+                    </div>
+                    <div class="col-md-8 col-12">
+                        {% for author in dataset.ds_meta_data.authors %}
+                        <p class="p-0 m-0">
+                            {{ author.name }}
+                            {% if author.affiliation %}
+                            ({{ author.affiliation }})
+                            {% endif %}
+                            {% if author.orcid %}
+                            ({{ author.orcid }})
+                            {% endif %}
+                        </p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if dataset.ds_meta_data.publication_doi %}
+                <div class="row mb-2">
+                    <div class="col-md-4 col-12">
+                        <span class="text-secondary">
+                            Publication DOI
+                        </span>
+                    </div>
+                    <div class="col-md-8 col-12">
+                        <a href="{{ dataset.ds_meta_data.publication_doi }}" target="_blank">
+                            {{ dataset.ds_meta_data.publication_doi }}
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="row mb-2">
+                    <div class="col-md-4 col-12">
+                        <span class="text-secondary">
+                            Publication Type
+                        </span>
+                    </div>
+                    <div class="col-md-8 col-12">
+                        <span class="badge bg-secondary">{{ dataset.ds_meta_data.publication_type.name.replace('_', ' ').title() }}</span>
+                    </div>
+                </div>
+
+                <div class="row mb-2">
+                    <div class="col-md-4 col-12">
+                        <span class="text-secondary">
+                            Tags
+                        </span>
+                    </div>
+                    <div class="col-md-8 col-12">
+                        {% for tag in dataset.ds_meta_data.tags.split(',') %}
+                        <span class="badge bg-secondary">{{ tag.strip() }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="row mb-2">
+                    <div class="col-md-4 col-12">
+                        <span class="text-secondary">
+                            Statistics
+                        </span>
+                    </div>
+                    <div class="col-md-8 col-12">
+                        <span class="badge bg-success">{{ dataset.get_unique_materials()|length }} materials</span>
+                        <span class="badge bg-info">{{ dataset.get_materials_count() }} records</span>
+                        <span class="badge bg-warning">{{ dataset.get_unique_properties()|length }} properties</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h3> Related publication </h3>
+
+                David Romero-Organvidez, José A. Galindo, Chico Sundermann, Jose-Miguel Horcas, David Benavides,
+                <i>UVLHub: A feature model data repository using UVL and open science principles</i>,
+                Journal of Systems and Software,
+                2024,
+                112150,
+                ISSN 0164-1212,
+                <a href="https://doi.org/10.1016/j.jss.2024.112150" target="_blank">https://doi.org/10.1016/j.jss.2024.112150</a>
+            </div>
+
+            <div class="card-body mt-0 pt-0">
+                <button onclick="copyText('bibtex_cite')" class="btn btn-light btn-sm" style="border-radius: 5px; margin-right: 10px">
+                    <i data-feather="clipboard" class="center-button-icon"></i>
+                    Copy in BibTex
+                </button>
+
+                <button onclick="copyText('ris_cite')" class="btn btn-light btn-sm" style="border-radius: 5px;">
+                    <i data-feather="clipboard" class="center-button-icon"></i>
+                    Copy in RIS
+                </button>
+
+                <button onclick="copyText('apa_cite')" class="btn btn-light btn-sm" style="border-radius: 5px;">
+                    <i data-feather="clipboard" class="center-button-icon"></i>
+                    Copy in APA
+                </button>
+
+                <button onclick="copyText('text_cite')" class="btn btn-light btn-sm" style="border-radius: 5px;">
+                    <i data-feather="clipboard" class="center-button-icon"></i>
+                    Copy in text
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="col-xl-4 col-lg-12 col-md-12 col-sm-12">
+
+        <div class="list-group">
+
+            <div class="list-group-item">
+                <div class="row">
+                    <div class="col-12 d-flex justify-content-between align-items-center">
+                        <h4 style="margin-bottom: 0px">Material Records</h4>
+                        <h4 style="margin-bottom: 0px;"><span class="badge bg-dark">{{ total }}</span></h4>
+                    </div>
+                </div>
+            </div>
+
+            {% if records %}
+                {% for record in records %}
+                    <div class="list-group-item">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="row mb-2">
+                                    <div class="col-12">
+                                        <strong>{{ record.material_name }}</strong>
+                                        {% if record.chemical_formula %}
+                                        <span class="text-muted">({{ record.chemical_formula }})</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-12">
+                                        <small class="text-muted">
+                                            <strong>{{ record.property_name }}:</strong> {{ record.property_value }}
+                                            {% if record.property_unit %}{{ record.property_unit }}{% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+
+                                {% if record.structure_type %}
+                                <div class="row">
+                                    <div class="col-12">
+                                        <small class="text-muted">Structure: {{ record.structure_type }}</small>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if record.temperature %}
+                                <div class="row">
+                                    <div class="col-12">
+                                        <small class="text-muted">Temperature: {{ record.temperature }} K</small>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if record.data_source %}
+                                <div class="row mt-1">
+                                    <div class="col-12">
+                                        <span class="badge bg-info">{{ record.data_source.value }}</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if record.description %}
+                                <div class="row mt-2">
+                                    <div class="col-12">
+                                        <small class="text-muted"><em>{{ record.description }}</em></small>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="list-group-item">
+                    <div class="alert alert-info mb-0" role="alert">
+                        <small>No material records found in this dataset.</small>
+                    </div>
+                </div>
+            {% endif %}
+
+        </div>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <nav aria-label="Page navigation" class="mt-3">
+            <ul class="pagination pagination-sm justify-content-center">
+                <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('dataset.view_materials_dataset', dataset_id=dataset.id, page=page-1, per_page=per_page) }}">Previous</a>
+                </li>
+
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == page %}
+                        <li class="page-item active"><a class="page-link" href="#">{{ p }}</a></li>
+                    {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                        <li class="page-item"><a class="page-link" href="{{ url_for('dataset.view_materials_dataset', dataset_id=dataset.id, page=p, per_page=per_page) }}">{{ p }}</a></li>
+                    {% elif p == page - 3 or p == page + 3 %}
+                        <li class="page-item disabled"><a class="page-link" href="#">...</a></li>
+                    {% endif %}
+                {% endfor %}
+
+                <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('dataset.view_materials_dataset', dataset_id=dataset.id, page=page+1, per_page=per_page) }}">Next</a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        feather.replace();
+    });
+</script>
+
+{% endblock %}
