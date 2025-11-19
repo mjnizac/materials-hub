@@ -55,3 +55,6 @@ ubuntu-bionic-18.04-cloudimg-console.log
 # Custom ignores
 # ==========================
 .moduleignore
+
+# Database backups
+backups/*.sql
