@@ -30,6 +30,7 @@ def test_client(test_client):
     yield test_client
 
 
+@pytest.mark.integration
 class TestDataSetIntegration:
     """Integration tests for DataSet CRUD operations"""
 
@@ -159,6 +160,7 @@ class TestDataSetIntegration:
             db.session.commit()
 
 
+@pytest.mark.integration
 class TestAuthenticationDatasetIntegration:
     """Integration tests between authentication and dataset modules"""
 
@@ -227,6 +229,7 @@ class TestAuthenticationDatasetIntegration:
         test_client.get("/logout", follow_redirects=True)
 
 
+@pytest.mark.integration
 class TestDatasetPublicationTypeIntegration:
     """Integration tests for different publication types"""
 
@@ -271,6 +274,7 @@ class TestDatasetPublicationTypeIntegration:
             db.session.commit()
 
 
+@pytest.mark.integration
 def test_dataset_search_integration(test_client):
     """Test dataset search functionality across the application"""
     with test_client.application.app_context():

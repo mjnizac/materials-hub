@@ -31,6 +31,7 @@ def zenodo_service():
         return service
 
 
+@pytest.mark.unit
 class TestZenodoService:
     """Test cases for ZenodoService"""
 

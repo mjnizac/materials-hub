@@ -23,6 +23,7 @@ def test_client(test_client):
     yield test_client
 
 
+@pytest.mark.integration
 class TestAuthenticationIntegration:
     """Integration tests for complete authentication workflows"""
 
@@ -120,6 +121,7 @@ class TestAuthenticationIntegration:
             db.session.commit()
 
 
+@pytest.mark.integration
 class TestSessionManagement:
     """Integration tests for session management"""
 
@@ -172,6 +174,7 @@ class TestSessionManagement:
         test_client.get("/logout", follow_redirects=True)
 
 
+@pytest.mark.integration
 class TestPasswordSecurity:
     """Integration tests for password security"""
 
@@ -215,6 +218,7 @@ class TestPasswordSecurity:
             db.session.commit()
 
 
+@pytest.mark.integration
 def test_signup_duplicate_email(test_client):
     """Test that duplicate email registration is prevented"""
     # Try to signup with existing email
@@ -229,6 +233,7 @@ def test_signup_duplicate_email(test_client):
     assert b"Email" in response.data and b"in use" in response.data
 
 
+@pytest.mark.integration
 def test_access_protected_routes_without_login(test_client):
     """Test that protected routes redirect to login"""
     # Ensure logged out

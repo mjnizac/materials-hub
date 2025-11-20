@@ -19,6 +19,7 @@ def test_client(test_client):
     yield test_client
 
 
+@pytest.mark.unit
 class TestExploreService:
     """Test cases for ExploreService"""
 
@@ -79,12 +80,14 @@ class TestExploreService:
         assert result is not None
 
 
+@pytest.mark.unit
 def test_explore_route_accessible(test_client):
     """Test that explore route is accessible"""
     response = test_client.get("/explore")
     assert response.status_code == 200
 
 
+@pytest.mark.unit
 def test_explore_route_returns_html(test_client):
     """Test that explore route returns HTML content"""
     response = test_client.get("/explore")
