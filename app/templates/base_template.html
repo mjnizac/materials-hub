@@ -33,6 +33,7 @@ chico sundermann">
 
     <link rel="stylesheet" href="{{ url_for("static", filename="css/own.css") }}">
 
+    {% block head_extra %}{% endblock %}
 </head>
 
 <body>
@@ -116,6 +117,16 @@ chico sundermann">
                         </a>
                     </li>
 
+                    <li class="sidebar-header">
+                        Materials Datasets
+                    </li>
+
+                    <li class="sidebar-item {{ 'active' if request.endpoint == 'dataset.list_materials_datasets' else '' }}">
+                        <a class="sidebar-link" href="{{ url_for('dataset.list_materials_datasets') }}">
+                            <i class="align-middle" data-feather="database"></i> <span
+                                class="align-middle">My materials datasets</span>
+                        </a>
+                    </li>
 
                     <li class="sidebar-header">
                         Options
@@ -308,7 +319,9 @@ Romero-Organvidez, D., Galindo, J. A., Sundermann, C., Horcas, J.-M., & Benavide
 
 </script>
 
-{% block scripts %}{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/recommendations.js') }}"></script>
+{% endblock %}
 
 </body>
 

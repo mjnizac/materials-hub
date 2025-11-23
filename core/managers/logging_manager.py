@@ -1,4 +1,5 @@
 import logging
+import os
 from logging.handlers import RotatingFileHandler
 
 
@@ -7,11 +8,18 @@ class LoggingManager:
         self.app = app
 
     def setup_logging(self):
+        # Ensure logs directory exists
+        logs_dir = os.path.join(os.getcwd(), "logs")
+        os.makedirs(logs_dir, exist_ok=True)
+
         # Configure log format
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
         # Configure the log file with file rotation
-        file_handler = RotatingFileHandler("app.log", maxBytes=10240, backupCount=10)
+        # Logs are stored in logs/app.log and rotated when reaching 10KB
+        # Keeps only the last 5 backup files (app.log.1 to app.log.5)
+        log_file_path = os.path.join(logs_dir, "app.log")
+        file_handler = RotatingFileHandler(log_file_path, maxBytes=10240, backupCount=5)
         file_handler.setLevel(logging.ERROR)
         file_handler.setFormatter(formatter)
 

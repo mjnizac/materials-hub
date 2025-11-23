@@ -1,0 +1,254 @@
+@startuml MaterialsHub_Models
+
+!define ABSTRACT_CLASS abstract class
+!define ENUM enum
+
+' Enumerations
+ENUM PublicationType {
+    NONE
+    ANNOTATION_COLLECTION
+    BOOK
+    BOOK_SECTION
+    CONFERENCE_PAPER
+    DATA_MANAGEMENT_PLAN
+    JOURNAL_ARTICLE
+    PATENT
+    PREPRINT
+    PROJECT_DELIVERABLE
+    PROJECT_MILESTONE
+    PROPOSAL
+    REPORT
+    SOFTWARE_DOCUMENTATION
+    TAXONOMIC_TREATMENT
+    TECHNICAL_NOTE
+    THESIS
+    WORKING_PAPER
+    OTHER
+}
+
+ENUM DataSource {
+    EXPERIMENTAL
+    COMPUTATIONAL
+    LITERATURE
+    DATABASE
+    OTHER
+}
+
+' Core Metadata Models
+class Author {
+    +id: Integer
+    +name: String
+    +affiliation: String
+    +orcid: String
+    +ds_meta_data_id: Integer
+    +fm_meta_data_id: Integer
+    --
+    +to_dict(): dict
+}
+
+class DSMetrics {
+    +id: Integer
+    +number_of_models: String
+    +number_of_features: String
+}
+
+class DSMetaData {
+    +id: Integer
+    +deposition_id: Integer
+    +title: String
+    +description: Text
+    +publication_type: PublicationType
+    +publication_doi: String
+    +dataset_doi: String
+    +tags: String
+    +ds_metrics_id: Integer
+    --
+    +ds_metrics: DSMetrics
+    +authors: List<Author>
+}
+
+' Abstract Base Class
+ABSTRACT_CLASS BaseDataset {
+    {abstract}
+    +id: Integer
+    +user_id: Integer
+    +ds_meta_data_id: Integer
+    +created_at: DateTime
+    --
+    +name(): String
+    +delete(): void
+    +get_cleaned_publication_type(): String
+    +get_zenodo_url(): String
+    +get_uvlhub_doi(): String
+    +get_file_total_size_for_human(): String
+    +to_dict(): dict
+    --
+    {abstract} +validate(): void
+    {abstract} +files(): List
+    {abstract} +get_files_count(): Integer
+    {abstract} +get_file_total_size(): Integer
+}
+
+' UVL Dataset (Original DataSet)
+class UVLDataset {
+    __tablename__ = 'data_set'
+    --
+    +ds_meta_data: DSMetaData
+    +feature_models: List<FeatureModel>
+    --
+    +files(): List<File>
+    +get_files_count(): Integer
+    +get_file_total_size(): Integer
+    +validate(): bool
+    +to_dict(): dict
+}
+
+' Materials Dataset
+class MaterialsDataset {
+    __tablename__ = 'materials_dataset'
+    --
+    +csv_file_path: String
+    --
+    +ds_meta_data: DSMetaData
+    +material_records: List<MaterialRecord>
+    --
+    +files(): List
+    +get_files_count(): Integer
+    +get_file_total_size(): Integer
+    +get_materials_count(): Integer
+    +get_unique_materials(): List<String>
+    +get_unique_properties(): List<String>
+    +validate(): bool
+    +to_dict(): dict
+}
+
+' Material Record
+class MaterialRecord {
+    +id: Integer
+    +materials_dataset_id: Integer
+    --
+    +material_name: String
+    +chemical_formula: String
+    +structure_type: String
+    +composition_method: String
+    +property_name: String
+    +property_value: String
+    +property_unit: String
+    +temperature: Integer
+    +pressure: Integer
+    +data_source: DataSource
+    +uncertainty: Integer
+    +description: Text
+    --
+    +to_dict(): dict
+}
+
+' Download and View Records
+class DSDownloadRecord {
+    +id: Integer
+    +user_id: Integer
+    +dataset_id: Integer
+    +download_date: DateTime
+    +download_cookie: String
+}
+
+class DSViewRecord {
+    +id: Integer
+    +user_id: Integer
+    +dataset_id: Integer
+    +view_date: DateTime
+    +view_cookie: String
+}
+
+' DOI Mapping
+class DOIMapping {
+    +id: Integer
+    +dataset_doi_old: String
+    +dataset_doi_new: String
+}
+
+' External Models (referenced)
+class User <<external>> {
+    +id: Integer
+}
+
+class FeatureModel <<external>> {
+    +id: Integer
+    +files: List<File>
+}
+
+' Inheritance Relationships
+BaseDataset <|-- UVLDataset
+BaseDataset <|-- MaterialsDataset
+
+' Composition Relationships
+DSMetaData "1" *-- "0..1" DSMetrics : has >
+DSMetaData "1" o-- "0..*" Author : has >
+DSMetaData ..> PublicationType : uses
+
+BaseDataset "1" o-- "1" DSMetaData : has >
+
+UVLDataset "1" o-- "0..*" FeatureModel : contains >
+
+MaterialsDataset "1" *-- "0..*" MaterialRecord : contains >
+MaterialRecord ..> DataSource : uses
+
+' Tracking Relationships
+UVLDataset "1" o-- "0..*" DSDownloadRecord : tracked by >
+UVLDataset "1" o-- "0..*" DSViewRecord : tracked by >
+
+' User Relationships
+BaseDataset "0..*" --> "1" User : owned by >
+DSDownloadRecord "0..*" --> "0..1" User : tracked for >
+DSViewRecord "0..*" --> "0..1" User : tracked for >
+
+' Notes
+note right of BaseDataset
+  **Template Method Pattern**
+
+  Abstract base class that defines
+  common behavior for all dataset types.
+
+  Concrete implementations:
+  - UVLDataset (for UVL feature models)
+  - MaterialsDataset (for CSV materials data)
+end note
+
+note right of MaterialsDataset
+  **New Dataset Type**
+
+  Stores CSV-based materials data
+  with properties and measurements.
+
+  Supports:
+  - Multiple materials per dataset
+  - Multiple properties per material
+  - Data source tracking
+  - Temperature/Pressure conditions
+end note
+
+note bottom of MaterialRecord
+  **CSV Row Representation**
+
+  Each record represents one row
+  in the materials CSV file.
+
+  Required fields:
+  - material_name
+  - property_name
+  - property_value
+end note
+
+note left of DataSource
+  **Data Provenance**
+
+  Tracks the origin of
+  material property data:
+
+  - EXPERIMENTAL: Lab measurements
+  - COMPUTATIONAL: Simulations
+  - LITERATURE: Published papers
+  - DATABASE: External databases
+end note
+
+@enduml

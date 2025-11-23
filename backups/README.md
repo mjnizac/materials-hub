@@ -1,0 +1,1 @@
+# Database Backups\n\nThis directory contains automatic database backups created by the `rosemary db:upgrade` command.\n\nBackups are created automatically before applying migrations to ensure data safety.\n\n**Note:** These files are excluded from git (.gitignore)

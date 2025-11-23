@@ -1,0 +1,41 @@
+{% for rec_dataset in recommended_datasets %}
+<div class="recommendation-row">
+    <div class="recommendation-left">
+        <div class="recommendation-header d-flex justify-content-between align-items-center mb-1">
+            <div class="recommendation-title">
+                <a href="/doi/{{ rec_dataset.ds_meta_data.dataset_doi }}/">
+                    {{ rec_dataset.ds_meta_data.title }}
+                </a>
+            </div>
+            <div class="recommendation-author text-end text-secondary">
+                {% for author in rec_dataset.ds_meta_data.authors %}
+                {{ author.name }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Fecha y badges en la misma línea -->
+        <div class="recommendation-meta d-flex justify-content-between align-items-center mb-2">
+            <div class="recommendation-date">
+                {{ rec_dataset.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+            </div>
+            <div class="recommendation-badges text-end">
+                {% for tag in rec_dataset.ds_meta_data.tags.split(',')[:2] %}
+                <span class="badge bg-info">{{ tag.strip() }}</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="recommendation-description">
+            {{ rec_dataset.ds_meta_data.description[:100] }}
+            {% if rec_dataset.ds_meta_data.description|length > 100 %}...{% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% if recommended_datasets|length == 0 %}
+<div class="alert alert-warning" role="alert">
+    <i data-feather="alert-circle"></i> No recommendations found with the selected filter.
+</div>
+{% endif %}

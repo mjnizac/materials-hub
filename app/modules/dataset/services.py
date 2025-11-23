@@ -1,3 +1,4 @@
+import csv
 import hashlib
 import logging
 import os
@@ -92,6 +93,176 @@ class DataSetService(BaseService):
     def total_dataset_views(self) -> int:
         return self.dsviewrecord_repostory.total_dataset_views()
 
+    def get_recommendations(self, dataset_id: int, limit: int = 3):
+        """
+        CAMBIO: Obtiene datasets recomendados basados en similitud de tags,
+        tipo de publicación y autor.
+
+        Args:
+            dataset_id: ID del dataset actual
+            limit: Número máximo de recomendaciones (default: 3)
+
+        Returns:
+            Lista de DataSet ordenados por relevancia
+        """
+        try:
+            # Obtener el dataset actual
+            current_dataset = self.repository.get_or_404(dataset_id)
+
+            # Verificar que tenga metadata y tags
+            if not current_dataset.ds_meta_data or not current_dataset.ds_meta_data.tags:
+                # Si no tiene tags, retornar datasets recientes
+                return DataSet.query.filter(
+                    DataSet.id != dataset_id,
+                    DataSet.ds_meta_data_id.isnot(None)
+                ).order_by(DataSet.created_at.desc()).limit(limit).all()
+
+            # Obtener tags del dataset actual
+            current_tags = set(tag.strip().lower() for tag in current_dataset.ds_meta_data.tags.split(','))
+
+            # Obtener todos los demás datasets
+            all_datasets = DataSet.query.filter(
+                DataSet.id != dataset_id,
+                DataSet.ds_meta_data_id.isnot(None)
+            ).all()
+
+            # Calcular puntuación de similitud para cada dataset
+            recommendations = []
+            for dataset in all_datasets:
+                score = 0
+
+                # Verificar que tenga metadata válida
+                if not dataset.ds_meta_data:
+                    continue
+
+                # 1. Similitud de tags (peso: 3 puntos por cada tag común)
+                if dataset.ds_meta_data.tags:
+                    dataset_tags = set(tag.strip().lower() for tag in dataset.ds_meta_data.tags.split(','))
+                    common_tags = current_tags.intersection(dataset_tags)
+                    score += len(common_tags) * 3
+
+                # 2. Mismo tipo de publicación (peso: 2 puntos)
+                if (hasattr(dataset.ds_meta_data, 'publication_type') and
+                        hasattr(current_dataset.ds_meta_data, 'publication_type') and
+                        dataset.ds_meta_data.publication_type == current_dataset.ds_meta_data.publication_type):
+                    score += 2
+
+                # 3. Mismo autor (peso: 1 punto)
+                if dataset.user_id == current_dataset.user_id:
+                    score += 1
+
+                # Solo añadir si tiene alguna puntuación
+                if score > 0:
+                    recommendations.append((dataset, score))
+
+            # Ordenar por puntuación descendente
+            recommendations.sort(key=lambda x: x[1], reverse=True)
+
+            # Obtener los mejores resultados
+            result = [rec[0] for rec in recommendations[:limit]]
+
+            # Si no hay suficientes recomendaciones, completar con datasets recientes
+            if len(result) < limit:
+                recent_datasets = DataSet.query.filter(
+                    DataSet.id != dataset_id,
+                    DataSet.ds_meta_data_id.isnot(None)
+                ).order_by(DataSet.created_at.desc()).limit(limit - len(result)).all()
+
+                # Añadir solo los que no estén ya en result
+                result_ids = {d.id for d in result}
+                for dataset in recent_datasets:
+                    if dataset.id not in result_ids:
+                        result.append(dataset)
+                        if len(result) >= limit:
+                            break
+
+            return result[:limit]
+
+        except Exception as e:
+            logger.exception(f"Error getting recommendations for dataset {dataset_id}: {e}")
+            # En caso de error, retornar lista vacía
+            return []
+
+    def get_all_except(self, dataset_id: int):
+        """
+        Obtiene todos los datasets excepto el especificado.
+
+        Args:
+            dataset_id: ID del dataset a excluir
+
+        Returns:
+            Lista de DataSet
+        """
+        return DataSet.query.filter(
+            DataSet.id != dataset_id,
+            DataSet.ds_meta_data_id.isnot(None)
+        ).all()
+
+    def filter_by_authors(self, datasets, current_dataset):
+        """
+        Filtra datasets que comparten autores con el dataset actual.
+
+        Args:
+            datasets: Lista de datasets a filtrar
+            current_dataset: Dataset de referencia
+
+        Returns:
+            Lista filtrada de datasets
+        """
+        if not current_dataset.ds_meta_data or not current_dataset.ds_meta_data.authors:
+            return []
+
+        current_authors = {a.name.strip().lower() for a in current_dataset.ds_meta_data.authors}
+
+        return [
+            ds for ds in datasets
+            if ds.ds_meta_data
+            and ds.ds_meta_data.authors
+            and any(a.name.strip().lower() in current_authors for a in ds.ds_meta_data.authors)
+        ]
+
+    def filter_by_tags(self, datasets, current_dataset):
+        """
+        Filtra datasets que comparten tags con el dataset actual.
+
+        Args:
+            datasets: Lista de datasets a filtrar
+            current_dataset: Dataset de referencia
+
+        Returns:
+            Lista filtrada de datasets
+        """
+        if not current_dataset.ds_meta_data or not current_dataset.ds_meta_data.tags:
+            return []
+
+        current_tags = {t.strip().lower() for t in current_dataset.ds_meta_data.tags.split(",")}
+
+        return [
+            ds for ds in datasets
+            if ds.ds_meta_data
+            and ds.ds_meta_data.tags
+            and any(t.strip().lower() in current_tags for t in ds.ds_meta_data.tags.split(","))
+        ]
+
+    def filter_by_community(self, datasets, current_dataset):
+        """
+        Filtra datasets que pertenecen a la misma comunidad.
+
+        Args:
+            datasets: Lista de datasets a filtrar
+            current_dataset: Dataset de referencia
+
+        Returns:
+            Lista filtrada de datasets
+        """
+        if not hasattr(current_dataset, 'community_id') or not current_dataset.community_id:
+            return []
+
+        return [
+            ds for ds in datasets
+            if hasattr(ds, 'community_id') and ds.community_id == current_dataset.community_id
+        ]
+
     def create_from_form(self, form, current_user) -> DataSet:
         main_author = {
             "name": f"{current_user.profile.surname}, {current_user.profile.name}",
@@ -148,6 +319,7 @@ class DataSetService(BaseService):
         if metric == "views":
             return self.repository.get_top_views_global(limit=limit, days=days)
         return self.repository.get_top_downloads_global(limit=limit, days=days)
+
 
 class AuthorService(BaseService):
     def __init__(self):
@@ -220,3 +392,462 @@ class SizeService:
             return f"{round(size / (1024 ** 2), 2)} MB"
         else:
             return f"{round(size / (1024 ** 3), 2)} GB"
+
+
+class MaterialsDatasetService:
+    """Service for handling MaterialsDataset operations including CSV parsing"""
+
+    # Expected CSV columns (exact names)
+    REQUIRED_COLUMNS = [
+        'material_name',
+        'property_name',
+        'property_value'
+    ]
+
+    OPTIONAL_COLUMNS = [
+        'chemical_formula',
+        'structure_type',
+        'composition_method',
+        'property_unit',
+        'temperature',
+        'pressure',
+        'data_source',
+        'uncertainty',
+        'description'
+    ]
+
+    def __init__(self):
+        from app.modules.dataset.repositories import MaterialsDatasetRepository, MaterialRecordRepository
+        self.materials_dataset_repository = MaterialsDatasetRepository()
+        self.material_record_repository = MaterialRecordRepository()
+
+    def validate_csv_columns(self, csv_columns: list) -> dict:
+        """
+        Validates that CSV has required columns and identifies optional ones.
+
+        Args:
+            csv_columns: List of column names from CSV header
+
+        Returns:
+            dict with 'valid' (bool), 'missing_required' (list), 'extra_columns' (list)
+        """
+        csv_columns_set = set(csv_columns)
+        required_set = set(self.REQUIRED_COLUMNS)
+        optional_set = set(self.OPTIONAL_COLUMNS)
+        all_valid_columns = required_set | optional_set
+
+        # Check for missing required columns
+        missing_required = list(required_set - csv_columns_set)
+
+        # Check for extra/unknown columns
+        extra_columns = list(csv_columns_set - all_valid_columns)
+
+        is_valid = len(missing_required) == 0
+
+        return {
+            'valid': is_valid,
+            'missing_required': missing_required,
+            'extra_columns': extra_columns,
+            'message': self._build_validation_message(missing_required, extra_columns)
+        }
+
+    def _build_validation_message(self, missing: list, extra: list) -> str:
+        """Build a human-readable validation message"""
+        messages = []
+
+        if missing:
+            messages.append(f"Missing required columns: {', '.join(missing)}")
+
+        if extra:
+            messages.append(f"Unknown columns (will be ignored): {', '.join(extra)}")
+
+        if not messages:
+            return "CSV structure is valid"
+
+        return "; ".join(messages)
+
+    def parse_csv_file(self, csv_file_path: str, encoding: str = 'utf-8') -> dict:
+        """
+        Parses a CSV file and returns data ready to create MaterialRecords.
+
+        Args:
+            csv_file_path: Path to the CSV file
+            encoding: File encoding (default: utf-8)
+
+        Returns:
+            dict with:
+                - 'success': bool
+                - 'data': list of dicts (rows) if successful
+                - 'validation': validation result
+                - 'error': error message if failed
+                - 'rows_parsed': number of rows parsed
+        """
+        result = {
+            'success': False,
+            'data': [],
+            'validation': None,
+            'error': None,
+            'rows_parsed': 0
+        }
+
+        try:
+            # Check if file exists
+            if not os.path.exists(csv_file_path):
+                result['error'] = f"CSV file not found: {csv_file_path}"
+                return result
+
+            # Read and validate CSV
+            with open(csv_file_path, 'r', encoding=encoding) as csv_file:
+                csv_reader = csv.DictReader(csv_file)
+
+                # Validate columns
+                columns = csv_reader.fieldnames
+                validation = self.validate_csv_columns(columns)
+                result['validation'] = validation
+
+                if not validation['valid']:
+                    result['error'] = validation['message']
+                    return result
+
+                # Parse rows
+                rows_data = []
+                for row_num, row in enumerate(csv_reader, start=2):  # start=2 because row 1 is header
+                    try:
+                        parsed_row = self._parse_csv_row(row, row_num)
+                        rows_data.append(parsed_row)
+                    except ValueError as e:
+                        logger.warning(f"Skipping row {row_num}: {str(e)}")
+                        continue
+
+                result['data'] = rows_data
+                result['rows_parsed'] = len(rows_data)
+                result['success'] = True
+
+        except UnicodeDecodeError:
+            result['error'] = f"Encoding error. Try different encoding (current: {encoding})"
+        except Exception as e:
+            result['error'] = f"Error parsing CSV: {str(e)}"
+            logger.error(f"CSV parsing error: {str(e)}", exc_info=True)
+
+        return result
+
+    def _parse_csv_row(self, row: dict, row_num: int) -> dict:
+        """
+        Parses a single CSV row and converts data types.
+
+        Args:
+            row: Dictionary from csv.DictReader
+            row_num: Row number for error messages
+
+        Returns:
+            dict with parsed and typed data
+
+        Raises:
+            ValueError: If required fields are missing or invalid
+        """
+        from app.modules.dataset.models import DataSource
+
+        # Check required fields
+        if not row.get('material_name', '').strip():
+            raise ValueError(f"Row {row_num}: material_name is required")
+        if not row.get('property_name', '').strip():
+            raise ValueError(f"Row {row_num}: property_name is required")
+        if not row.get('property_value', '').strip():
+            raise ValueError(f"Row {row_num}: property_value is required")
+
+        parsed_data = {
+            # Required fields
+            'material_name': row['material_name'].strip(),
+            'property_name': row['property_name'].strip(),
+            'property_value': row['property_value'].strip(),
+
+            # Optional string fields
+            'chemical_formula': row.get('chemical_formula', '').strip() or None,
+            'structure_type': row.get('structure_type', '').strip() or None,
+            'composition_method': row.get('composition_method', '').strip() or None,
+            'property_unit': row.get('property_unit', '').strip() or None,
+            'description': row.get('description', '').strip() or None,
+        }
+
+        # Parse temperature (Integer)
+        temp_value = row.get('temperature', '').strip()
+        if temp_value:
+            try:
+                parsed_data['temperature'] = int(temp_value)
+            except ValueError:
+                logger.warning(f"Row {row_num}: Invalid temperature value '{temp_value}', setting to None")
+                parsed_data['temperature'] = None
+        else:
+            parsed_data['temperature'] = None
+
+        # Parse pressure (Integer)
+        pressure_value = row.get('pressure', '').strip()
+        if pressure_value:
+            try:
+                parsed_data['pressure'] = int(pressure_value)
+            except ValueError:
+                logger.warning(f"Row {row_num}: Invalid pressure value '{pressure_value}', setting to None")
+                parsed_data['pressure'] = None
+        else:
+            parsed_data['pressure'] = None
+
+        # Parse uncertainty (Integer)
+        uncertainty_value = row.get('uncertainty', '').strip()
+        if uncertainty_value:
+            try:
+                parsed_data['uncertainty'] = int(uncertainty_value)
+            except ValueError:
+                logger.warning(f"Row {row_num}: Invalid uncertainty value '{uncertainty_value}', setting to None")
+                parsed_data['uncertainty'] = None
+        else:
+            parsed_data['uncertainty'] = None
+
+        # Parse data_source (Enum)
+        data_source_value = row.get('data_source', '').strip().upper()
+        if data_source_value:
+            try:
+                parsed_data['data_source'] = DataSource[data_source_value]
+            except KeyError:
+                valid_sources = ', '.join([e.name for e in DataSource])
+                logger.warning(
+                    f"Row {row_num}: Invalid data_source '{data_source_value}'. "
+                    f"Valid options: {valid_sources}. Setting to None"
+                )
+                parsed_data['data_source'] = None
+        else:
+            parsed_data['data_source'] = None
+
+        return parsed_data
+
+    def create_material_records_from_csv(self, materials_dataset, csv_file_path: str) -> dict:
+        """
+        Parses CSV file and creates MaterialRecord instances linked to the MaterialsDataset.
+
+        Args:
+            materials_dataset: MaterialsDataset instance to link records to
+            csv_file_path: Path to the CSV file
+
+        Returns:
+            dict with:
+                - 'success': bool
+                - 'records_created': int
+                - 'error': str (if failed)
+        """
+        from app import db
+        from app.modules.dataset.models import MaterialRecord
+
+        # Parse the CSV
+        parse_result = self.parse_csv_file(csv_file_path)
+
+        if not parse_result['success']:
+            return {
+                'success': False,
+                'records_created': 0,
+                'error': parse_result['error']
+            }
+
+        # Create MaterialRecord instances
+        records_created = 0
+        try:
+            for row_data in parse_result['data']:
+                material_record = MaterialRecord(
+                    materials_dataset_id=materials_dataset.id,
+                    **row_data
+                )
+                db.session.add(material_record)
+                records_created += 1
+
+            db.session.commit()
+
+            return {
+                'success': True,
+                'records_created': records_created,
+                'error': None
+            }
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error creating MaterialRecords: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'records_created': 0,
+                'error': f"Database error: {str(e)}"
+            }
+
+    def get_recommendations(self, materials_dataset_id: int, limit: int = 3):
+        """
+        Gets recommended materials datasets based on tag similarity,
+        publication type, and author.
+
+        Args:
+            materials_dataset_id: ID of the current materials dataset
+            limit: Maximum number of recommendations (default: 3)
+
+        Returns:
+            List of MaterialsDataset ordered by relevance
+        """
+        from app.modules.dataset.models import MaterialsDataset
+
+        try:
+            # Get current dataset
+            current_dataset = self.materials_dataset_repository.get_by_id(materials_dataset_id)
+            if not current_dataset:
+                return []
+
+            # Check if it has metadata and tags
+            if not current_dataset.ds_meta_data or not current_dataset.ds_meta_data.tags:
+                # If no tags, return recent datasets
+                return MaterialsDataset.query.filter(
+                    MaterialsDataset.id != materials_dataset_id,
+                    MaterialsDataset.ds_meta_data_id.isnot(None)
+                ).order_by(MaterialsDataset.created_at.desc()).limit(limit).all()
+
+            # Get tags from current dataset
+            current_tags = set(tag.strip().lower() for tag in current_dataset.ds_meta_data.tags.split(','))
+
+            # Get all other materials datasets
+            all_datasets = MaterialsDataset.query.filter(
+                MaterialsDataset.id != materials_dataset_id,
+                MaterialsDataset.ds_meta_data_id.isnot(None)
+            ).all()
+
+            # Calculate similarity score for each dataset
+            recommendations = []
+            for dataset in all_datasets:
+                score = 0
+
+                # Check valid metadata
+                if not dataset.ds_meta_data:
+                    continue
+
+                # 1. Tag similarity (weight: 3 points per common tag)
+                if dataset.ds_meta_data.tags:
+                    dataset_tags = set(tag.strip().lower() for tag in dataset.ds_meta_data.tags.split(','))
+                    common_tags = current_tags.intersection(dataset_tags)
+                    score += len(common_tags) * 3
+
+                # 2. Same publication type (weight: 2 points)
+                if (hasattr(dataset.ds_meta_data, 'publication_type') and
+                        hasattr(current_dataset.ds_meta_data, 'publication_type') and
+                        dataset.ds_meta_data.publication_type == current_dataset.ds_meta_data.publication_type):
+                    score += 2
+
+                # 3. Same author (weight: 1 point)
+                if dataset.user_id == current_dataset.user_id:
+                    score += 1
+
+                # Only add if has some score
+                if score > 0:
+                    recommendations.append((dataset, score))
+
+            # Sort by score descending
+            recommendations.sort(key=lambda x: x[1], reverse=True)
+
+            # Get top results
+            result = [rec[0] for rec in recommendations[:limit]]
+
+            # If not enough recommendations, complete with recent datasets
+            if len(result) < limit:
+                recent_datasets = MaterialsDataset.query.filter(
+                    MaterialsDataset.id != materials_dataset_id,
+                    MaterialsDataset.ds_meta_data_id.isnot(None)
+                ).order_by(MaterialsDataset.created_at.desc()).limit(limit - len(result)).all()
+
+                # Add only those not already in result
+                result_ids = {d.id for d in result}
+                for dataset in recent_datasets:
+                    if dataset.id not in result_ids:
+                        result.append(dataset)
+                        if len(result) >= limit:
+                            break
+
+            return result[:limit]
+
+        except Exception as e:
+            logger.exception(f"Error getting recommendations for materials dataset {materials_dataset_id}: {e}")
+            # In case of error, return empty list
+            return []
+
+    def get_all_except(self, materials_dataset_id: int):
+        """
+        Gets all materials datasets except the specified one.
+
+        Args:
+            materials_dataset_id: ID of the materials dataset to exclude
+
+        Returns:
+            List of MaterialsDataset
+        """
+        from app.modules.dataset.models import MaterialsDataset
+
+        return MaterialsDataset.query.filter(
+            MaterialsDataset.id != materials_dataset_id,
+            MaterialsDataset.ds_meta_data_id.isnot(None)
+        ).all()
+
+    def filter_by_authors(self, datasets, current_dataset):
+        """
+        Filters materials datasets that share authors with current dataset.
+
+        Args:
+            datasets: List of materials datasets to filter
+            current_dataset: Reference materials dataset
+
+        Returns:
+            Filtered list of materials datasets
+        """
+        if not current_dataset.ds_meta_data or not current_dataset.ds_meta_data.authors:
+            return []
+
+        current_authors = {a.name.strip().lower() for a in current_dataset.ds_meta_data.authors}
+
+        return [
+            ds for ds in datasets
+            if ds.ds_meta_data
+            and ds.ds_meta_data.authors
+            and any(a.name.strip().lower() in current_authors for a in ds.ds_meta_data.authors)
+        ]
+
+    def filter_by_tags(self, datasets, current_dataset):
+        """
+        Filters materials datasets that share tags with current dataset.
+
+        Args:
+            datasets: List of materials datasets to filter
+            current_dataset: Reference materials dataset
+
+        Returns:
+            Filtered list of materials datasets
+        """
+        if not current_dataset.ds_meta_data or not current_dataset.ds_meta_data.tags:
+            return []
+
+        current_tags = {t.strip().lower() for t in current_dataset.ds_meta_data.tags.split(",")}
+
+        return [
+            ds for ds in datasets
+            if ds.ds_meta_data
+            and ds.ds_meta_data.tags
+            and any(t.strip().lower() in current_tags for t in ds.ds_meta_data.tags.split(","))
+        ]
+
+    def filter_by_properties(self, datasets, current_dataset):
+        """
+        Filters materials datasets that measure similar properties.
+
+        Args:
+            datasets: List of materials datasets to filter
+            current_dataset: Reference materials dataset
+
+        Returns:
+            Filtered list of materials datasets
+        """
+        current_properties = {prop.strip().lower() for prop in current_dataset.get_unique_properties()}
+
+        if not current_properties:
+            return []
+
+        return [
+            ds for ds in datasets
+            if any(prop.strip().lower() in current_properties for prop in ds.get_unique_properties())
+        ]

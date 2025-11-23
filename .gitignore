@@ -3,6 +3,7 @@
 # ==========================
 .venv/
 venv/
+entornopy/
 vagrant_venv/
 rosemary.egg-info/
 build/
@@ -25,6 +26,7 @@ __pycache__/
 *.log
 app.log
 deployments.log
+logs/*.log*
 .coverage
 htmlcov/
 .pytest_cache/
@@ -54,3 +56,6 @@ ubuntu-bionic-18.04-cloudimg-console.log
 # Custom ignores
 # ==========================
 .moduleignore
+
+# Database backups
+backups/*.sql

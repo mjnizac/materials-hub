@@ -1,0 +1,52 @@
+{% if recommended_datasets|length > 0 %}
+<div class="recommendations-table">
+    {% for rec_dataset in recommended_datasets %}
+    <div class="recommendation-row">
+        <div class="recommendation-left">
+            <div class="recommendation-header d-flex justify-content-between align-items-center mb-1">
+                <div class="recommendation-title">
+                    <a href="/materials/{{ rec_dataset.id }}">
+                        {{ rec_dataset.ds_meta_data.title }}
+                    </a>
+                </div>
+                <div class="recommendation-author text-end text-secondary">
+                    {% for author in rec_dataset.ds_meta_data.authors %}
+                    {{ author.name }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Date and badges on same line -->
+            <div class="recommendation-meta d-flex justify-content-between align-items-center mb-2">
+                <div class="recommendation-date">
+                    {{ rec_dataset.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                </div>
+                <div class="recommendation-badges text-end">
+                    {% for tag in rec_dataset.ds_meta_data.tags.split(',')[:2] %}
+                    <span class="badge bg-info">{{ tag.strip() }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="recommendation-description">
+                {{ rec_dataset.ds_meta_data.description[:100] }}
+                {% if rec_dataset.ds_meta_data.description|length > 100 %}...{% endif %}
+            </div>
+
+            <!-- Materials dataset specific info -->
+            <div class="recommendation-meta mt-2">
+                <small class="text-muted">
+                    <span class="badge bg-success">{{ rec_dataset.get_unique_materials()|length }} materials</span>
+                    <span class="badge bg-info">{{ rec_dataset.get_materials_count() }} records</span>
+                    <span class="badge bg-warning">{{ rec_dataset.get_unique_properties()|length }} properties</span>
+                </small>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-warning text-center" role="alert">
+    <i data-feather="alert-circle"></i> No recommendations found with the selected filter.
+</div>
+{% endif %}

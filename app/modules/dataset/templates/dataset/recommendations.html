@@ -1,0 +1,18 @@
+<div class="recommendations-wrapper mt-4">
+    <div class="d-flex flex-wrap gap-3 align-items-start">
+        <div id="recommendations-container" class="flex-grow-1">
+            {% include "dataset/recommendations_table.html" %}
+        </div>
+
+        <div class="recommendation-filters">
+            <h6 class="mb-2 text-secondary">Filters</h6>
+            <button class="filter-btn" onclick="applyFilter('authors')">Authors</button>
+            <button class="filter-btn" onclick="applyFilter('tags')">Tags</button>
+            <button class="filter-btn" onclick="applyFilter('communities')">Communities</button>
+        </div>
+    </div>
+
+    <nav class="mt-3" aria-label="Recommendations pagination">
+        <ul id="pagination" class="pagination pagination-sm justify-content-center"></ul>
+    </nav>
+</div>
