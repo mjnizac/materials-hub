@@ -30,12 +30,12 @@ class TestAuthenticationIntegration:
     def test_complete_signup_workflow(self, test_client):
         """Test complete user registration workflow"""
         # Step 1: Access signup page
-        response = test_client.get("/signup")
+        response = test_client.get("/signup/")
         assert response.status_code == 200
 
         # Step 2: Submit registration form
         response = test_client.post(
-            "/signup",
+            "/signup/",
             data=dict(name="IntegrationTest", surname="User", email="integration@test.com", password="secure123"),
             follow_redirects=True,
         )
@@ -223,7 +223,7 @@ def test_signup_duplicate_email(test_client):
     """Test that duplicate email registration is prevented"""
     # Try to signup with existing email
     response = test_client.post(
-        "/signup",
+        "/signup/",
         data=dict(name="Duplicate", surname="User", email="test@example.com", password="password123"),
         follow_redirects=True,
     )

@@ -28,7 +28,7 @@ def zenodo_service():
     """Fixture to create a ZenodoService instance"""
     with patch.dict(os.environ, {"ZENODO_ACCESS_TOKEN": "test_token", "FLASK_ENV": "development"}):
         service = ZenodoService()
-        return service
+        yield service
 
 
 @pytest.mark.unit

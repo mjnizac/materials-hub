@@ -127,10 +127,10 @@ def test_upload_dataset():
         print("Test passed!")
 
     finally:
-
         # Close the browser
         close_driver(driver)
 
 
 # Call the test function
-test_upload_dataset()
+if __name__ == "__main__":
+    test_upload_dataset()

@@ -7,7 +7,6 @@ from core.selenium.common import close_driver, initialize_driver
 
 
 def test_webhook_index():
-
     driver = initialize_driver()
 
     try:
@@ -20,17 +19,16 @@ def test_webhook_index():
         time.sleep(4)
 
         try:
-
             pass
 
         except NoSuchElementException:
             raise AssertionError("Test failed!")
 
     finally:
-
         # Close the browser
         close_driver(driver)
 
 
 # Call the test function
-test_webhook_index()
+if __name__ == "__main__":
+    test_webhook_index()
