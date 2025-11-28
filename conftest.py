@@ -73,7 +73,7 @@ def clean_database():
     db.create_all()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def integration_test_data(test_client):
     """Create test data for integration tests."""
     with test_client.application.app_context():
@@ -176,7 +176,17 @@ def integration_test_data(test_client):
 
         yield
 
-        # Cleanup is handled by test_client fixture
+        # Cleanup: eliminar datos creados para este test
+        db.session.query(DSDownloadRecord).delete()
+        db.session.query(DSViewRecord).delete()
+        db.session.query(FeatureModel).delete()
+        db.session.query(FMMetaData).delete()
+        db.session.query(Author).delete()
+        db.session.query(DataSet).delete()
+        db.session.query(DSMetaData).delete()
+        db.session.query(UserProfile).delete()
+        db.session.query(User).filter_by(email="user1@example.com").delete()
+        db.session.commit()
 
 
 def login(test_client, email, password):
