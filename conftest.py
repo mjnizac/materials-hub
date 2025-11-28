@@ -76,17 +76,15 @@ def clean_database():
 def integration_test_data(test_client):
     """Create test data for integration tests."""
     with test_client.application.app_context():
-        # Create user1@example.com for integration tests
+        # Crear usuario y perfil
         user1 = User(email="user1@example.com", password="test1234")
         db.session.add(user1)
-        db.session.commit()
+        db.session.flush()  # Flush para obtener el ID sin commit
 
-        # Create profile for user1
         profile1 = UserProfile(user_id=user1.id, name="User", surname="One")
         db.session.add(profile1)
-        db.session.commit()
 
-        # Create first dataset with DOI (synchronized)
+        # Crear metadatos de datasets
         ds_meta1 = DSMetaData(
             title="Machine Learning Dataset",
             description="A dataset about machine learning patterns",
@@ -94,14 +92,31 @@ def integration_test_data(test_client):
             dataset_doi="10.1234/ml.2024.001",
             tags="machine learning, patterns, software",
         )
-        db.session.add(ds_meta1)
-        db.session.commit()
+        ds_meta2 = DSMetaData(
+            title="Software Patterns Dataset",
+            description="A dataset about software design patterns",
+            publication_type=PublicationType.JOURNAL_ARTICLE,
+            dataset_doi="10.1234/patterns.2024.002",
+            tags="patterns, design, software",
+        )
+        ds_meta3 = DSMetaData(
+            title="Unsynchronized Dataset",
+            description="A dataset without DOI for testing",
+            publication_type=PublicationType.WORKING_PAPER,
+            dataset_doi=None,
+            tags="testing, unsynchronized",
+        )
+        db.session.add_all([ds_meta1, ds_meta2, ds_meta3])
+        db.session.flush()
 
+        # Crear datasets
         dataset1 = DataSet(user_id=user1.id, ds_meta_data_id=ds_meta1.id, created_at=datetime.now(timezone.utc))
-        db.session.add(dataset1)
-        db.session.commit()
+        dataset2 = DataSet(user_id=user1.id, ds_meta_data_id=ds_meta2.id, created_at=datetime.now(timezone.utc))
+        dataset3 = DataSet(user_id=user1.id, ds_meta_data_id=ds_meta3.id, created_at=datetime.now(timezone.utc))
+        db.session.add_all([dataset1, dataset2, dataset3])
+        db.session.flush()
 
-        # Add feature model for first dataset
+        # Crear metadatos de feature models
         fm_meta1 = FMMetaData(
             uvl_filename="model1.uvl",
             title="ML Feature Model",
@@ -110,36 +125,6 @@ def integration_test_data(test_client):
             publication_doi="10.1234/fm.2024.001",
             tags="machine learning, features",
         )
-        db.session.add(fm_meta1)
-        db.session.commit()
-
-        fm1 = FeatureModel(data_set_id=dataset1.id, fm_meta_data_id=fm_meta1.id)
-        db.session.add(fm1)
-        db.session.commit()
-
-        # Add authors to first dataset
-        author1 = Author(name="Jane Smith", affiliation="MIT", ds_meta_data_id=ds_meta1.id)
-        author2 = Author(name="John Doe", affiliation="Stanford", ds_meta_data_id=ds_meta1.id)
-        db.session.add(author1)
-        db.session.add(author2)
-        db.session.commit()
-
-        # Create second dataset with different DOI
-        ds_meta2 = DSMetaData(
-            title="Software Patterns Dataset",
-            description="A dataset about software design patterns",
-            publication_type=PublicationType.JOURNAL_ARTICLE,
-            dataset_doi="10.1234/patterns.2024.002",
-            tags="patterns, design, software",
-        )
-        db.session.add(ds_meta2)
-        db.session.commit()
-
-        dataset2 = DataSet(user_id=user1.id, ds_meta_data_id=ds_meta2.id, created_at=datetime.now(timezone.utc))
-        db.session.add(dataset2)
-        db.session.commit()
-
-        # Add feature model for second dataset
         fm_meta2 = FMMetaData(
             uvl_filename="model2.uvl",
             title="Software Patterns Feature Model",
@@ -148,29 +133,6 @@ def integration_test_data(test_client):
             publication_doi="10.1234/fm.2024.002",
             tags="patterns, design, software",
         )
-        db.session.add(fm_meta2)
-        db.session.commit()
-
-        fm2 = FeatureModel(data_set_id=dataset2.id, fm_meta_data_id=fm_meta2.id)
-        db.session.add(fm2)
-        db.session.commit()
-
-        # Create third dataset WITHOUT DOI (unsynchronized)
-        ds_meta3 = DSMetaData(
-            title="Unsynchronized Dataset",
-            description="A dataset without DOI for testing",
-            publication_type=PublicationType.WORKING_PAPER,
-            dataset_doi=None,
-            tags="testing, unsynchronized",
-        )
-        db.session.add(ds_meta3)
-        db.session.commit()
-
-        dataset3 = DataSet(user_id=user1.id, ds_meta_data_id=ds_meta3.id, created_at=datetime.now(timezone.utc))
-        db.session.add(dataset3)
-        db.session.commit()
-
-        # Add feature model for third dataset
         fm_meta3 = FMMetaData(
             uvl_filename="model3.uvl",
             title="Unsync Feature Model",
@@ -179,14 +141,21 @@ def integration_test_data(test_client):
             publication_doi=None,
             tags="testing, unsynchronized",
         )
-        db.session.add(fm_meta3)
-        db.session.commit()
+        db.session.add_all([fm_meta1, fm_meta2, fm_meta3])
+        db.session.flush()
 
+        # Crear feature models
+        fm1 = FeatureModel(data_set_id=dataset1.id, fm_meta_data_id=fm_meta1.id)
+        fm2 = FeatureModel(data_set_id=dataset2.id, fm_meta_data_id=fm_meta2.id)
         fm3 = FeatureModel(data_set_id=dataset3.id, fm_meta_data_id=fm_meta3.id)
-        db.session.add(fm3)
-        db.session.commit()
+        db.session.add_all([fm1, fm2, fm3])
 
-        # Add download and view records
+        # Crear autores
+        author1 = Author(name="Jane Smith", affiliation="MIT", ds_meta_data_id=ds_meta1.id)
+        author2 = Author(name="John Doe", affiliation="Stanford", ds_meta_data_id=ds_meta1.id)
+        db.session.add_all([author1, author2])
+
+        # Crear registros de descarga y visualización
         download_record = DSDownloadRecord(
             user_id=user1.id,
             dataset_id=dataset1.id,
@@ -199,8 +168,9 @@ def integration_test_data(test_client):
             view_date=datetime.now(timezone.utc),
             view_cookie="test_view_cookie_123",
         )
-        db.session.add(download_record)
-        db.session.add(view_record)
+        db.session.add_all([download_record, view_record])
+
+        # Un solo commit para todos los datos
         db.session.commit()
 
         yield
