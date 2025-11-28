@@ -57,8 +57,9 @@ def test_client(test_app):
                 print(rule)
             yield testing_client
 
+            # Cleanup optimizado: solo cerrar sesión sin drop tables
+            # Las tablas se eliminan automáticamente al final de la sesión de pytest
             db.session.remove()
-            db.drop_all()
 
 
 @pytest.fixture(scope="function")
