@@ -10,8 +10,6 @@ name: Pytest
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
   pytest:
@@ -67,6 +65,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Step 5: Run the pytest test suite (ignoring Selenium tests)
-      - name: Run Tests
-        run: pytest app/modules/ --ignore-glob='*selenium*'
+      # Step 5: Run the pytest test suite (unit tests only)
+      - name: Run Unit Tests
+        run: pytest tests/test_unit.py -v --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=25
+
+      # Step 6: Run integration tests
+      - name: Run Integration Tests
+        run: pytest tests/test_integration.py -v -m integration
