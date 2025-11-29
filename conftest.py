@@ -35,6 +35,9 @@ def test_app():
 def test_client(test_app):
     with test_app.test_client() as testing_client:
         with test_app.app_context():
+            # Crear tablas de la base de datos
+            db.create_all()
+
             # Limpiar sesión antes de crear nuevos datos
             db.session.expire_all()
             db.session.remove()
