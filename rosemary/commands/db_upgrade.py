@@ -40,7 +40,7 @@ def db_upgrade(no_backup):
             click.echo(click.style(" ✓", fg="green"))
         except Exception as e:
             click.echo(click.style(" ✗", fg="red"))
-            click.echo(click.style(f"\nError: Unable to connect to database", fg="red"))
+            click.echo(click.style("\nError: Unable to connect to database", fg="red"))
             click.echo(click.style(f"Details: {e}", fg="yellow"))
             return
 
@@ -54,26 +54,11 @@ def db_upgrade(no_backup):
                 timeout=10
             )
 
-            heads_result = subprocess.run(
-                ["flask", "db", "heads"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-
             # Check if already at head
             if "(head)" in current_result.stdout:
                 click.echo(click.style("\n  ✓ Database is already up to date!", fg="green"))
                 click.echo(click.style("  No pending migrations to apply.\n", fg="white"))
                 return
-
-            # Try to get list of pending migrations
-            pending_result = subprocess.run(
-                ["flask", "db", "show"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
 
             click.echo(click.style("  Found pending migrations", fg="yellow"))
 
@@ -127,7 +112,7 @@ def db_upgrade(no_backup):
                     # Get file size
                     size_mb = os.path.getsize(backup_file) / (1024 * 1024)
                     click.echo(click.style(" ✓", fg="green"))
-                    click.echo(click.style(f"  Backup saved: ", fg="white") +
+                    click.echo(click.style("  Backup saved: ", fg="white") +
                                click.style(f"{backup_file}", fg="cyan") +
                                click.style(f" ({size_mb:.2f} MB)", fg="white"))
                 else:
@@ -239,7 +224,7 @@ def db_upgrade(no_backup):
                 for line in result.stdout.split('\n'):
                     if line.strip() and "->" not in line:
                         revision = line.split()[0] if line.split() else "unknown"
-                        click.echo(click.style(f"  Current revision: ", fg="white") +
+                        click.echo(click.style("  Current revision: ", fg="white") +
                                    click.style(f"{revision[:12]}", fg="cyan") +
                                    click.style(" (head)", fg="green"))
                         break

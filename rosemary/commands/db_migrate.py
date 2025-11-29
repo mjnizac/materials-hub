@@ -33,7 +33,7 @@ def db_migrate(message):
             click.echo(click.style(" ✓", fg="green"))
         except Exception as e:
             click.echo(click.style(" ✗", fg="red"))
-            click.echo(click.style(f"\nError: Unable to connect to database", fg="red"))
+            click.echo(click.style("\nError: Unable to connect to database", fg="red"))
             click.echo(click.style(f"Details: {e}", fg="yellow"))
             click.echo(click.style("\nPlease check your database configuration in .env", fg="white"))
             return

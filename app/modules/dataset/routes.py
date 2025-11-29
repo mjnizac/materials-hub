@@ -21,7 +21,7 @@ from flask_login import current_user, login_required
 
 from app.modules.dataset import dataset_bp
 from app.modules.dataset.forms import DataSetForm
-from app.modules.dataset.models import DSDownloadRecord, MaterialsDataset, MaterialRecord
+from app.modules.dataset.models import DSDownloadRecord
 from app.modules.dataset.repositories import MaterialsDatasetRepository, MaterialRecordRepository
 from app.modules.dataset.services import (
     AuthorService,
@@ -41,7 +41,7 @@ dataset_service = DataSetService()
 author_service = AuthorService()
 dsmetadata_service = DSMetaDataService()
 fakenodo_service = FakenodoService()
-zenodo_service= ZenodoService()
+zenodo_service = ZenodoService()
 doi_mapping_service = DOIMappingService()
 ds_view_record_service = DSViewRecordService()
 

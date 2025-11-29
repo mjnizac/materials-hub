@@ -1,11 +1,10 @@
 import os
-from flask import request, jsonify
+from flask import request
 from flask_restful import Resource
-from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
 from app import db
-from app.modules.dataset.models import DataSet, MaterialsDataset, MaterialRecord, DSMetaData
+from app.modules.dataset.models import DataSet, MaterialsDataset
 from app.modules.dataset.repositories import MaterialsDatasetRepository, MaterialRecordRepository
 from core.resources.generic_resource import create_resource
 from core.serialisers.serializer import Serializer
@@ -202,8 +201,12 @@ def init_blueprint_api(api_instance):
     api_instance.add_resource(DataSetResource, "/api/v1/datasets/<int:id>", endpoint="dataset")
 
     # MaterialsDataset CRUD endpoints
-    api_instance.add_resource(MaterialsDatasetResource, "/api/v1/materials-datasets/", endpoint="materials_datasets")
-    api_instance.add_resource(MaterialsDatasetResource, "/api/v1/materials-datasets/<int:id>", endpoint="materials_dataset")
+    api_instance.add_resource(
+        MaterialsDatasetResource, "/api/v1/materials-datasets/", endpoint="materials_datasets"
+    )
+    api_instance.add_resource(
+        MaterialsDatasetResource, "/api/v1/materials-datasets/<int:id>", endpoint="materials_dataset"
+    )
 
     # MaterialsDataset custom endpoints
     api_instance.add_resource(

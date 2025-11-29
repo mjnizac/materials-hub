@@ -76,7 +76,6 @@ def db_status():
 
             if result.returncode == 0 and heads_result.returncode == 0:
                 current_output = result.stdout.strip()
-                heads_output = heads_result.stdout.strip()
 
                 if "(head)" in current_output:
                     click.echo(

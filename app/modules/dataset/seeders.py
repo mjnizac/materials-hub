@@ -193,7 +193,7 @@ class DataSetSeeder(BaseSeeder):
             Author(
                 name=author_names[i][0],
                 affiliation=author_names[i][1],
-                orcid=f"0000-000{(i+1)//10}-{(i+1)%10:04d}-{6789+i:04d}",
+                orcid=f"0000-000{(i+1)//10}-{(i+1) % 10:04d}-{6789+i:04d}",
                 ds_meta_data_id=seeded_materials_meta_data[i].id,
             )
             for i in range(20)

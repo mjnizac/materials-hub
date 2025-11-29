@@ -1,6 +1,5 @@
 from app import db
-import uuid
-from sqlalchemy import event
+
 
 class Deposition(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -10,4 +9,3 @@ class Deposition(db.Model):
 
     def __repr__(self):
         return f'Deposition<{self.id}>'
-    
