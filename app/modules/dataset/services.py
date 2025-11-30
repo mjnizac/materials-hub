@@ -501,13 +501,13 @@ class MaterialsDatasetService:
                 csv_reader = csv.DictReader(csv_file)
 
                 # Validate columns
-                columns = csv_reader.fieldnames
+                """ columns = csv_reader.fieldnames
                 validation = self.validate_csv_columns(columns)
                 result['validation'] = validation
 
                 if not validation['valid']:
                     result['error'] = validation['message']
-                    return result
+                    return result """
 
                 # Parse rows
                 rows_data = []
@@ -547,13 +547,31 @@ class MaterialsDatasetService:
         """
         from app.modules.dataset.models import DataSource
 
-        # Check required fields
-        if not row.get('material_name', '').strip():
-            raise ValueError(f"Row {row_num}: material_name is required")
-        if not row.get('property_name', '').strip():
-            raise ValueError(f"Row {row_num}: property_name is required")
-        if not row.get('property_value', '').strip():
-            raise ValueError(f"Row {row_num}: property_value is required")
+        
+        """         # ...existing code...
+        from app import db
+        import uuid
+        from sqlalchemy import event
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        class Deposition(db.Model):
+            id = db.Column(db.Integer, primary_key=True)
+            dep_metadata = db.Column(db.JSON, nullable=False)
+            status = db.Column(db.String(50), nullable=False, default="draft")
+            doi = db.Column(db.String(250), unique=True, nullable=True)
+        
+            def __repr__(self):
+                return f'Deposition<{self.id}>'
+            
+        @event.listens_for(Deposition, 'before_insert')
+        def _assign_fake_doi(mapper, connection, target):
+            # Asigna un DOI simulado si no existe
+            if not target.doi:
+                target.doi = f"10.1234/fake.{uuid.uuid4().hex}"
+                logger.debug("fakenodo: assigned fake DOI %s to deposition (before insert)", target.doi)
+        # ...existing code... """
 
         parsed_data = {
             # Required fields

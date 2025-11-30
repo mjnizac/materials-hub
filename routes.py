@@ -6,7 +6,6 @@ import tempfile
 import uuid
 from datetime import datetime, timezone
 from zipfile import ZipFile
-from app import db
 
 from flask import (
     abort,
@@ -53,15 +52,18 @@ material_record_repository = MaterialRecordRepository()
 # ==============================
 # CREACIÓN Y GESTIÓN DE DATASETS
 # ==============================
-@dataset_bp.route("/upload", methods=["GET", "POST"])
+@dataset_bp.route("/dataset/upload", methods=["GET", "POST"])
 @login_required
 def create_dataset():
     form = DataSetForm()
+
     if request.method == "POST":
 
+        # 1. Validar formulario
         if not form.validate_on_submit():
             return jsonify({"message": form.errors}), 400
 
+        # 2. Crear dataset y mover modelos
         try:
             logger.info("Creating dataset...")
             dataset = dataset_service.create_from_form(form=form, current_user=current_user)
@@ -69,95 +71,55 @@ def create_dataset():
             dataset_service.move_feature_models(dataset)
         except Exception as exc:
             logger.exception(f"Exception while create dataset data in local {exc}")
-            return jsonify({"Exception while create dataset data in local: ": str(exc)}), 400
+            return jsonify({"message": f"Exception while create dataset data in local: {exc}"}), 400
 
-        if USE_FAKENODO:
+        # 3. Enviar dataset a Fakenodo (si falla, seguimos pero avisamos)
+        data = {}
+        try:
+            fakenodo_response_json = fakenodo_service.create_new_deposition(dataset)
+            # ya es un dict, no hace falta dumps/loads
+            data = fakenodo_response_json or {}
+        except Exception as exc:
             data = {}
+            logger.exception(f"Exception while create dataset data in Fakenodo {exc}")
+
+        if data.get("conceptrecid"):
+            deposition_id = data.get("id")
+
+            # 4. Actualizar dataset con el deposition_id de Fakenodo
+            dataset_service.update_dsmetadata(dataset.ds_meta_data_id, deposition_id=deposition_id)
+
             try:
-                fakenodo_response_json = fakenodo_service.create_new_deposition(dataset)
-                response_data = json.dumps(fakenodo_response_json)
-                data = json.loads(response_data)
+                # 5. Subir cada modelo a Fakenodo
+                for feature_model in dataset.feature_models:
+                    fakenodo_service.upload_file(dataset, deposition_id, feature_model)
+
+                # 6. Publicar el depósito en Fakenodo
+                fakenodo_service.publish_deposition(deposition_id)
+
+                # 7. Obtener y guardar el DOI falso de Fakenodo
+                deposition_doi = fakenodo_service.get_doi(deposition_id)
+                dataset_service.update_dsmetadata(dataset.ds_meta_data_id, dataset_doi=deposition_doi)
+
             except Exception as exc:
-                data = {}
-                fakenodo_response_json = {}
-                logger.exception(f"Exception while create dataset data in Fakenodo {exc}")
+                msg = f"it has not been possible upload feature models in Fakenodo and update the DOI: {exc}"
+                logger.exception(msg)
+                # Si quieres mantener el 200 como antes, cambia 500 por 200
+                return jsonify({"message": msg}), 500
 
-            if data.get("conceptrecid"):
-                deposition_id = data.get("id")
-
-                # update dataset with deposition id in Fakenodo
-                dataset_service.update_dsmetadata(dataset.ds_meta_data_id, deposition_id=deposition_id)
-
-                try:
-                    # iterate for each feature model (one feature model = one request to Fakenodo)
-                    for feature_model in dataset.feature_models:
-                        fakenodo_service.upload_file(dataset, deposition_id, feature_model)
-
-                    # publish deposition
-                    pub = fakenodo_service.publish_deposition(deposition_id)
-
-                    deposition_id = pub["id"]
-                    doi = pub.get("doi")
-
-                    # actualizar metadata del dataset y persistir
-                    md = getattr(dataset, "ds_meta_data", {}) or {}
-                    md["deposition_id"] = deposition_id
-                    if doi:
-                        md["dataset_doi"] = doi
-                    dataset.ds_meta_data = md
-                    db.session.add(dataset)
-                    db.session.commit()
-                except Exception as e:
-                    msg = f"it has not been possible upload feature models in Fakenodo and update the DOI: {e}"
-                    return jsonify({"message": msg}), 200
-        else:
-            # send dataset as deposition to fakenodo
-            data = {}
-            try:
-                fakenodo_response_json = fakenodo_service.create_new_deposition(dataset)
-                response_data = json.dumps(fakenodo_response_json)
-                data = json.loads(response_data)
-            except Exception as exc:
-                data = {}
-                fakenodo_response_json = {}
-                logger.exception(f"Exception while create dataset data in fakenodo {exc}")
-
-            if data.get("conceptrecid"):
-                deposition_id = data.get("id")
-
-                # update dataset with deposition id in fakenodo
-                dataset_service.update_dsmetadata(dataset.ds_meta_data_id, deposition_id=deposition_id)
-
-                try:
-                    # iterate for each feature model (one feature model = one request to fakenodo)
-                    for feature_model in dataset.feature_models:
-                        fakenodo_service.upload_file(dataset, deposition_id, feature_model)
-
-                    # publish deposition
-                    pub = fakenodo_service.publish_deposition(deposition_id)
-
-                    deposition_id = pub["id"]
-                    doi = pub.get("doi")
-
-                    # actualizar metadata del dataset y persistir
-                    md = getattr(dataset, "ds_meta_data", {}) or {}
-                    md["deposition_id"] = deposition_id
-                    if doi:
-                        md["dataset_doi"] = doi
-                    dataset.ds_meta_data = md
-                    db.session.add(dataset)
-                    db.session.commit()
-                except Exception as e:
-                    msg = f"it has not been possible upload feature models in fakenodo and update the DOI: {e}"
-                    return jsonify({"message": msg}), 200
-
+        # 8. Limpiar carpeta temporal del usuario
         file_path = current_user.temp_folder()
         if os.path.exists(file_path) and os.path.isdir(file_path):
             shutil.rmtree(file_path)
 
         return jsonify({"message": "Everything works!"}), 200
 
-    return render_template("dataset/upload_dataset.html", form=form, use_fakenodo=USE_FAKENODO)
+    # GET: mostrar formulario
+    return render_template(
+        "dataset/upload_dataset.html",
+        form=form,
+        use_fakenodo=USE_FAKENODO,  # solo para mostrar avisos en la UI si quieres
+    )
 
 
 @dataset_bp.route("/dataset/list", methods=["GET", "POST"])
@@ -346,7 +308,7 @@ def dataset_recommendations_by_doi(doi):
     elif filter_type == "communities":
         query = dataset_service.filter_by_community(query, current_dataset)
 
-     # Paginación
+    # Paginación
     per_page = 5
     start = (page - 1) * per_page
     end = start + per_page
@@ -364,12 +326,14 @@ def dataset_recommendations_by_doi(doi):
         "total_pages": total_pages
     })
 
+
 @dataset_bp.route("/dataset/unsynchronized/<int:dataset_id>/", methods=["GET"])
 @login_required
 def get_unsynchronized_dataset(dataset_id):
     dataset = dataset_service.get_unsynchronized_dataset(current_user.id, dataset_id)
     if not dataset:
         abort(404)
+
     recommended_datasets = dataset_service.get_recommendations(dataset_id, limit=3)
 
     return render_template(

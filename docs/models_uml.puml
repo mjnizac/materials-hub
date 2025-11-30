@@ -78,7 +78,7 @@ ABSTRACT_CLASS BaseDataset {
     +name(): String
     +delete(): void
     +get_cleaned_publication_type(): String
-    +get_zenodo_url(): String
+    +get_fakenodo_url(): String
     +get_uvlhub_doi(): String
     +get_file_total_size_for_human(): String
     +to_dict(): dict

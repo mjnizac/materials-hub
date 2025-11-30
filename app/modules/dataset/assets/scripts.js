@@ -130,7 +130,7 @@ var currentId = 0;
 
         window.onload = function () {
 
-            test_zenodo_connection();
+            test_fakenodo_connection();
 
             document.getElementById('upload_button').addEventListener('click', function () {
 
@@ -197,7 +197,7 @@ var currentId = 0;
 
 
                     if (checked_orcid && checked_name) {
-                        fetch('/dataset/upload', {
+                        fetch('/upload', {
                             method: 'POST',
                             body: formUploadData
                         })

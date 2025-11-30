@@ -95,8 +95,8 @@ class BaseDataset(db.Model):
     def get_cleaned_publication_type(self):
         return self.ds_meta_data.publication_type.name.replace("_", " ").title()
 
-    def get_zenodo_url(self):
-        return f"https://zenodo.org/record/{self.ds_meta_data.deposition_id}" if self.ds_meta_data.dataset_doi else None
+    def get_fakenodo_url(self):
+        return f"https://fakenodo.org/record/{self.ds_meta_data.deposition_id}" if self.ds_meta_data.dataset_doi else None
 
     def get_uvlhub_doi(self):
         from app.modules.dataset.services import DataSetService
@@ -138,7 +138,7 @@ class BaseDataset(db.Model):
             "tags": self.ds_meta_data.tags.split(",") if self.ds_meta_data.tags else [],
             "url": self.get_uvlhub_doi(),
             "download": f'{request.host_url.rstrip("/")}/dataset/download/{self.id}',
-            "zenodo": self.get_zenodo_url(),
+            "fakenodo": self.get_fakenodo_url(),
         }
 
     def __repr__(self):

@@ -78,7 +78,7 @@ classDiagram
         +name() string
         +delete() void
         +get_cleaned_publication_type() string
-        +get_zenodo_url() string
+        +get_fakenodo_url() string
         +get_uvlhub_doi() string
         +validate()* void
         +files()* List
@@ -244,7 +244,7 @@ Clase abstracta que define la estructura común para todos los tipos de datasets
 - `name()`: Retorna el título del dataset
 - `delete()`: Elimina el dataset
 - `get_cleaned_publication_type()`: Formatea el tipo de publicación
-- `get_zenodo_url()`: URL de Zenodo
+- `get_fakenodo_url()`: URL de fakenodo
 - `get_uvlhub_doi()`: DOI de UVLHub
 - `to_dict()`: Serialización base a diccionario
 
@@ -339,7 +339,7 @@ Mapeo entre DOIs antiguos y nuevos para migraciones.
 La clase `BaseDataset` implementa el patrón Template Method:
 
 1. **Métodos comunes implementados** en la clase base
-   - Operaciones compartidas (delete, get_zenodo_url, to_dict, etc.)
+   - Operaciones compartidas (delete, get_fakenodo_url, to_dict, etc.)
 
 2. **Métodos abstractos** que deben implementar las subclases
    - validate(), files(), get_files_count(), get_file_total_size()

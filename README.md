@@ -24,7 +24,7 @@ Desarrollado por **DiversoLab** en la Universidad de Sevilla.
 - 🔬 **Datasets UVL**: Soporte para modelos de características en formato UVL
 - 🔍 **Sistema de Recomendaciones**: Descubre datasets relacionados basados en tags, autores y propiedades
 - 👥 **Gestión de Usuarios**: Sistema de autenticación y perfiles de usuario
-- 🌐 **Integración Zenodo**: Publicación de datasets con DOI
+- 🌐 **Integración Fakenodo**: Publicación de datasets con DOI
 - 🧪 **Testing Completo**: Suite de tests unitarios, integración y E2E
 - 🎨 **UI Moderna**: Interfaz responsive con Bootstrap
 
@@ -106,8 +106,8 @@ MARIADB_DATABASE=uvlhubdb
 # Directorio de trabajo
 WORKING_DIR=
 
-# Zenodo (opcional - para integración)
-ZENODO_API_TOKEN=tu-token-aqui
+# Fakenodo (opcional - para integración)
+FAKENODO_API_TOKEN=tu-token-aqui
 ```
 
 **Importante:** Cambia `tu-password` y `SECRET_KEY` por valores seguros.
