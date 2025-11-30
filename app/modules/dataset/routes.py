@@ -184,10 +184,15 @@ def upload():
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
-    return jsonify({
-        "message": "UVL uploaded and validated successfully",
-        "filename": new_filename,
-    }), 200
+    return (
+        jsonify(
+            {
+                "message": "UVL uploaded and validated successfully",
+                "filename": new_filename,
+            }
+        ),
+        200,
+    )
 
 
 @dataset_bp.route("/dataset/file/delete", methods=["POST"])
@@ -262,11 +267,9 @@ def subdomain_index(doi):
 
     user_cookie = ds_view_record_service.create_cookie(dataset=dataset)
 
-    resp = make_response(render_template(
-        "dataset/view_dataset.html",
-        dataset=dataset,
-        recommended_datasets=recommended_datasets
-    ))
+    resp = make_response(
+        render_template("dataset/view_dataset.html", dataset=dataset, recommended_datasets=recommended_datasets)
+    )
     resp.set_cookie("view_cookie", user_cookie)
     return resp
 
@@ -295,16 +298,9 @@ def dataset_recommendations(dataset_id):
     paginated = query[start:end]
     total_pages = (len(query) + per_page - 1) // per_page
 
-    html = render_template(
-        "dataset/recommendations_table.html",
-        recommended_datasets=paginated
-    )
+    html = render_template("dataset/recommendations_table.html", recommended_datasets=paginated)
 
-    return jsonify({
-        "html": html,
-        "page": page,
-        "total_pages": total_pages
-    })
+    return jsonify({"html": html, "page": page, "total_pages": total_pages})
 
 
 @dataset_bp.route("/doi/<path:doi>/recommendations")
@@ -338,16 +334,9 @@ def dataset_recommendations_by_doi(doi):
     paginated = query[start:end]
     total_pages = (len(query) + per_page - 1) // per_page
 
-    html = render_template(
-        "dataset/recommendations_table.html",
-        recommended_datasets=paginated
-    )
+    html = render_template("dataset/recommendations_table.html", recommended_datasets=paginated)
 
-    return jsonify({
-        "html": html,
-        "page": page,
-        "total_pages": total_pages
-    })
+    return jsonify({"html": html, "page": page, "total_pages": total_pages})
 
 
 @dataset_bp.route("/dataset/unsynchronized/<int:dataset_id>/", methods=["GET"])
@@ -359,11 +348,7 @@ def get_unsynchronized_dataset(dataset_id):
 
     recommended_datasets = dataset_service.get_recommendations(dataset_id, limit=3)
 
-    return render_template(
-        "dataset/view_dataset.html",
-        dataset=dataset,
-        recommended_datasets=recommended_datasets
-    )
+    return render_template("dataset/view_dataset.html", dataset=dataset, recommended_datasets=recommended_datasets)
 
 
 @dataset_bp.route("/datasets/top", methods=["GET"])
@@ -393,15 +378,13 @@ def view_top_global():
 
 # ==================== MaterialsDataset Routes ====================
 
+
 @dataset_bp.route("/materials/list", methods=["GET"])
 @login_required
 def list_materials_datasets():
     """List all MaterialsDatasets for the current user"""
     datasets = materials_dataset_repository.get_by_user(current_user.id)
-    return render_template(
-        "dataset/list_materials_datasets.html",
-        datasets=datasets
-    )
+    return render_template("dataset/list_materials_datasets.html", datasets=datasets)
 
 
 @dataset_bp.route("/materials/<int:dataset_id>", methods=["GET"])
@@ -413,8 +396,8 @@ def view_materials_dataset(dataset_id):
         abort(404)
 
     # Get pagination parameters
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
 
     # Get records for this dataset
     all_records = material_record_repository.get_by_dataset(dataset_id)
@@ -437,7 +420,7 @@ def view_materials_dataset(dataset_id):
         per_page=per_page,
         total=total,
         total_pages=total_pages,
-        recommended_datasets=recommended_datasets
+        recommended_datasets=recommended_datasets,
     )
 
 
@@ -456,16 +439,17 @@ def upload_materials_csv(dataset_id):
 
     if request.method == "POST":
         # Check if file is in request
-        if 'file' not in request.files:
+        if "file" not in request.files:
             return jsonify({"message": "No file part in the request"}), 400
 
-        file = request.files['file']
-        if file.filename == '':
+        file = request.files["file"]
+        if file.filename == "":
             return jsonify({"message": "No file selected"}), 400
 
-        if file and file.filename.endswith('.csv'):
+        if file and file.filename.endswith(".csv"):
             # Save file temporarily
             from werkzeug.utils import secure_filename
+
             filename = secure_filename(file.filename)
             working_dir = os.getenv("WORKING_DIR", "")
             temp_dir = os.path.join(working_dir, "temp")
@@ -478,33 +462,33 @@ def upload_materials_csv(dataset_id):
             result = materials_dataset_service.create_material_records_from_csv(dataset, temp_path)
 
             # Update csv_file_path if successful
-            if result['success']:
+            if result["success"]:
                 from app import db
+
                 dataset.csv_file_path = temp_path
                 db.session.commit()
 
             # Clean up temp file if parsing failed
-            if not result['success'] and os.path.exists(temp_path):
+            if not result["success"] and os.path.exists(temp_path):
                 os.remove(temp_path)
 
-            if result['success']:
-                return jsonify({
-                    "message": "CSV uploaded and parsed successfully",
-                    "records_created": result['records_created'],
-                    "dataset_id": dataset.id
-                }), 200
+            if result["success"]:
+                return (
+                    jsonify(
+                        {
+                            "message": "CSV uploaded and parsed successfully",
+                            "records_created": result["records_created"],
+                            "dataset_id": dataset.id,
+                        }
+                    ),
+                    200,
+                )
             else:
-                return jsonify({
-                    "message": "CSV parsing failed",
-                    "error": result['error']
-                }), 400
+                return jsonify({"message": "CSV parsing failed", "error": result["error"]}), 400
         else:
             return jsonify({"message": "File must be a CSV"}), 400
 
-    return render_template(
-        "dataset/upload_materials_csv.html",
-        dataset=dataset
-    )
+    return render_template("dataset/upload_materials_csv.html", dataset=dataset)
 
 
 @dataset_bp.route("/materials/<int:dataset_id>/statistics", methods=["GET"])
@@ -515,10 +499,7 @@ def materials_dataset_statistics(dataset_id):
     if not dataset:
         abort(404)
 
-    return render_template(
-        "dataset/materials_statistics.html",
-        dataset=dataset
-    )
+    return render_template("dataset/materials_statistics.html", dataset=dataset)
 
 
 @dataset_bp.route("/materials/<int:dataset_id>/search", methods=["GET"])
@@ -529,19 +510,14 @@ def search_materials(dataset_id):
     if not dataset:
         abort(404)
 
-    search_term = request.args.get('q', '', type=str)
+    search_term = request.args.get("q", "", type=str)
 
     if search_term:
         records = material_record_repository.search_materials(dataset_id, search_term)
     else:
         records = []
 
-    return render_template(
-        "dataset/search_materials.html",
-        dataset=dataset,
-        records=records,
-        search_term=search_term
-    )
+    return render_template("dataset/search_materials.html", dataset=dataset, records=records, search_term=search_term)
 
 
 @dataset_bp.route("/materials/<int:dataset_id>/recommendations")
@@ -571,16 +547,9 @@ def materials_dataset_recommendations(dataset_id):
     paginated = query[start:end]
     total_pages = (len(query) + per_page - 1) // per_page
 
-    html = render_template(
-        "dataset/materials_recommendations_table.html",
-        recommended_datasets=paginated
-    )
+    html = render_template("dataset/materials_recommendations_table.html", recommended_datasets=paginated)
 
-    return jsonify({
-        "html": html,
-        "page": page,
-        "total_pages": total_pages
-    })
+    return jsonify({"html": html, "page": page, "total_pages": total_pages})
 
 
 @dataset_bp.route("/materials/<int:dataset_id>/view_csv", methods=["GET"])

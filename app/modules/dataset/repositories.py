@@ -13,7 +13,7 @@ from app.modules.dataset.models import (
     DSMetaData,
     DSViewRecord,
     MaterialsDataset,
-    MaterialRecord
+    MaterialRecord,
 )
 from core.repositories.BaseRepository import BaseRepository
 
@@ -116,8 +116,7 @@ class DataSetRepository(BaseRepository):
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
         q = (
-            self.model.query
-            .join(DSMetaData, DSMetaData.id == DataSet.ds_meta_data_id)
+            self.model.query.join(DSMetaData, DSMetaData.id == DataSet.ds_meta_data_id)
             .outerjoin(
                 DSDownloadRecord,
                 and_(
@@ -145,8 +144,7 @@ class DataSetRepository(BaseRepository):
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
         q = (
-            self.model.query
-            .join(DSMetaData, DSMetaData.id == DataSet.ds_meta_data_id)
+            self.model.query.join(DSMetaData, DSMetaData.id == DataSet.ds_meta_data_id)
             .outerjoin(
                 DSViewRecord,
                 and_(
@@ -224,24 +222,18 @@ class MaterialRecordRepository(BaseRepository):
 
     def get_by_material_name(self, dataset_id: int, material_name: str):
         """Get all records for a specific material in a dataset"""
-        return self.model.query.filter_by(
-            materials_dataset_id=dataset_id,
-            material_name=material_name
-        ).all()
+        return self.model.query.filter_by(materials_dataset_id=dataset_id, material_name=material_name).all()
 
     def get_by_property_name(self, dataset_id: int, property_name: str):
         """Get all records for a specific property in a dataset"""
-        return self.model.query.filter_by(
-            materials_dataset_id=dataset_id,
-            property_name=property_name
-        ).all()
+        return self.model.query.filter_by(materials_dataset_id=dataset_id, property_name=property_name).all()
 
     def search_materials(self, dataset_id: int, search_term: str):
         """Search materials by name or chemical formula"""
         return self.model.query.filter(
             self.model.materials_dataset_id == dataset_id,
-            (self.model.material_name.ilike(f'%{search_term}%')) |
-            (self.model.chemical_formula.ilike(f'%{search_term}%'))
+            (self.model.material_name.ilike(f"%{search_term}%"))
+            | (self.model.chemical_formula.ilike(f"%{search_term}%")),
         ).all()
 
     def filter_by_temperature_range(self, dataset_id: int, min_temp: int = None, max_temp: int = None):
@@ -257,17 +249,21 @@ class MaterialRecordRepository(BaseRepository):
 
     def get_unique_materials(self, dataset_id: int):
         """Get unique material names in a dataset"""
-        return self.model.query.filter_by(materials_dataset_id=dataset_id)\
-            .with_entities(self.model.material_name)\
-            .distinct()\
+        return (
+            self.model.query.filter_by(materials_dataset_id=dataset_id)
+            .with_entities(self.model.material_name)
+            .distinct()
             .all()
+        )
 
     def get_unique_properties(self, dataset_id: int):
         """Get unique property names in a dataset"""
-        return self.model.query.filter_by(materials_dataset_id=dataset_id)\
-            .with_entities(self.model.property_name)\
-            .distinct()\
+        return (
+            self.model.query.filter_by(materials_dataset_id=dataset_id)
+            .with_entities(self.model.property_name)
+            .distinct()
             .all()
+        )
 
     def count_by_dataset(self, dataset_id: int) -> int:
         """Count records in a dataset"""

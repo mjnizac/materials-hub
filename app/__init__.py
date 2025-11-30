@@ -36,6 +36,7 @@ def create_app(config_name="development"):
 
     # Inicializar APIs después de registrar módulos
     from app.modules.dataset import init_api
+
     init_api()
 
     # Register login manager

@@ -59,28 +59,21 @@ def db_status():
                     + click.style("Database not initialized (run 'db:setup')", fg="red")
                 )
         except Exception as e:
-            click.echo(
-                click.style("  Migration: ", fg="white") + click.style(f"Unable to read - {e}", fg="yellow")
-            )
+            click.echo(click.style("  Migration: ", fg="white") + click.style(f"Unable to read - {e}", fg="yellow"))
 
         # 3. Check for pending migrations
         try:
-            result = subprocess.run(
-                ["flask", "db", "current"], capture_output=True, text=True, timeout=10
-            )
+            result = subprocess.run(["flask", "db", "current"], capture_output=True, text=True, timeout=10)
 
             # Check if there are pending migrations
-            heads_result = subprocess.run(
-                ["flask", "db", "heads"], capture_output=True, text=True, timeout=10
-            )
+            heads_result = subprocess.run(["flask", "db", "heads"], capture_output=True, text=True, timeout=10)
 
             if result.returncode == 0 and heads_result.returncode == 0:
                 current_output = result.stdout.strip()
 
                 if "(head)" in current_output:
                     click.echo(
-                        click.style("  Pending:   ", fg="white")
-                        + click.style("✓ No pending migrations", fg="green")
+                        click.style("  Pending:   ", fg="white") + click.style("✓ No pending migrations", fg="green")
                     )
                 else:
                     click.echo(
@@ -88,10 +81,7 @@ def db_status():
                         + click.style("⚠ Migrations need to be applied (run 'flask db upgrade')", fg="yellow")
                     )
         except Exception as e:
-            click.echo(
-                click.style("  Pending:   ", fg="white")
-                + click.style(f"Unable to check - {e}", fg="yellow")
-            )
+            click.echo(click.style("  Pending:   ", fg="white") + click.style(f"Unable to check - {e}", fg="yellow"))
 
         # 4. Count tables
         try:
@@ -99,13 +89,9 @@ def db_status():
             tables = inspector.get_table_names()
             # Exclude alembic_version from count
             table_count = len([t for t in tables if t != "alembic_version"])
-            click.echo(
-                click.style("  Tables:    ", fg="white") + click.style(f"{table_count}", fg="cyan")
-            )
+            click.echo(click.style("  Tables:    ", fg="white") + click.style(f"{table_count}", fg="cyan"))
         except Exception as e:
-            click.echo(
-                click.style("  Tables:    ", fg="white") + click.style(f"Unable to count - {e}", fg="yellow")
-            )
+            click.echo(click.style("  Tables:    ", fg="white") + click.style(f"Unable to count - {e}", fg="yellow"))
 
         # 5. Get database size (MariaDB/MySQL specific)
         try:
@@ -121,9 +107,7 @@ def db_status():
                 result = conn.execute(query, {"db_name": db_name})
                 size_mb = result.scalar()
                 if size_mb:
-                    click.echo(
-                        click.style("  Size:      ", fg="white") + click.style(f"{size_mb} MB", fg="cyan")
-                    )
+                    click.echo(click.style("  Size:      ", fg="white") + click.style(f"{size_mb} MB", fg="cyan"))
         except Exception:
             # Size information not critical, skip if fails
             pass

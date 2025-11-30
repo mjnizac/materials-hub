@@ -47,6 +47,7 @@ class DataSetService(BaseService):
             HubfileRepository,
             HubfileViewRecordRepository,
         )
+
         self.hubfiledownloadrecord_repository = HubfileDownloadRecordRepository()
         self.hubfilerepository = HubfileRepository()
         self.dsviewrecord_repostory = DSViewRecordRepository()
@@ -114,19 +115,18 @@ class DataSetService(BaseService):
             # Verificar que tenga metadata y tags
             if not current_dataset.ds_meta_data or not current_dataset.ds_meta_data.tags:
                 # Si no tiene tags, retornar datasets recientes
-                return DataSet.query.filter(
-                    DataSet.id != dataset_id,
-                    DataSet.ds_meta_data_id.isnot(None)
-                ).order_by(DataSet.created_at.desc()).limit(limit).all()
+                return (
+                    DataSet.query.filter(DataSet.id != dataset_id, DataSet.ds_meta_data_id.isnot(None))
+                    .order_by(DataSet.created_at.desc())
+                    .limit(limit)
+                    .all()
+                )
 
             # Obtener tags del dataset actual
-            current_tags = set(tag.strip().lower() for tag in current_dataset.ds_meta_data.tags.split(','))
+            current_tags = set(tag.strip().lower() for tag in current_dataset.ds_meta_data.tags.split(","))
 
             # Obtener todos los demás datasets
-            all_datasets = DataSet.query.filter(
-                DataSet.id != dataset_id,
-                DataSet.ds_meta_data_id.isnot(None)
-            ).all()
+            all_datasets = DataSet.query.filter(DataSet.id != dataset_id, DataSet.ds_meta_data_id.isnot(None)).all()
 
             # Calcular puntuación de similitud para cada dataset
             recommendations = []
@@ -139,14 +139,16 @@ class DataSetService(BaseService):
 
                 # 1. Similitud de tags (peso: 3 puntos por cada tag común)
                 if dataset.ds_meta_data.tags:
-                    dataset_tags = set(tag.strip().lower() for tag in dataset.ds_meta_data.tags.split(','))
+                    dataset_tags = set(tag.strip().lower() for tag in dataset.ds_meta_data.tags.split(","))
                     common_tags = current_tags.intersection(dataset_tags)
                     score += len(common_tags) * 3
 
                 # 2. Mismo tipo de publicación (peso: 2 puntos)
-                if (hasattr(dataset.ds_meta_data, 'publication_type') and
-                        hasattr(current_dataset.ds_meta_data, 'publication_type') and
-                        dataset.ds_meta_data.publication_type == current_dataset.ds_meta_data.publication_type):
+                if (
+                    hasattr(dataset.ds_meta_data, "publication_type")
+                    and hasattr(current_dataset.ds_meta_data, "publication_type")
+                    and dataset.ds_meta_data.publication_type == current_dataset.ds_meta_data.publication_type
+                ):
                     score += 2
 
                 # 3. Mismo autor (peso: 1 punto)
@@ -165,10 +167,12 @@ class DataSetService(BaseService):
 
             # Si no hay suficientes recomendaciones, completar con datasets recientes
             if len(result) < limit:
-                recent_datasets = DataSet.query.filter(
-                    DataSet.id != dataset_id,
-                    DataSet.ds_meta_data_id.isnot(None)
-                ).order_by(DataSet.created_at.desc()).limit(limit - len(result)).all()
+                recent_datasets = (
+                    DataSet.query.filter(DataSet.id != dataset_id, DataSet.ds_meta_data_id.isnot(None))
+                    .order_by(DataSet.created_at.desc())
+                    .limit(limit - len(result))
+                    .all()
+                )
 
                 # Añadir solo los que no estén ya en result
                 result_ids = {d.id for d in result}
@@ -195,10 +199,7 @@ class DataSetService(BaseService):
         Returns:
             Lista de DataSet
         """
-        return DataSet.query.filter(
-            DataSet.id != dataset_id,
-            DataSet.ds_meta_data_id.isnot(None)
-        ).all()
+        return DataSet.query.filter(DataSet.id != dataset_id, DataSet.ds_meta_data_id.isnot(None)).all()
 
     def filter_by_authors(self, datasets, current_dataset):
         """
@@ -217,7 +218,8 @@ class DataSetService(BaseService):
         current_authors = {a.name.strip().lower() for a in current_dataset.ds_meta_data.authors}
 
         return [
-            ds for ds in datasets
+            ds
+            for ds in datasets
             if ds.ds_meta_data
             and ds.ds_meta_data.authors
             and any(a.name.strip().lower() in current_authors for a in ds.ds_meta_data.authors)
@@ -240,7 +242,8 @@ class DataSetService(BaseService):
         current_tags = {t.strip().lower() for t in current_dataset.ds_meta_data.tags.split(",")}
 
         return [
-            ds for ds in datasets
+            ds
+            for ds in datasets
             if ds.ds_meta_data
             and ds.ds_meta_data.tags
             and any(t.strip().lower() in current_tags for t in ds.ds_meta_data.tags.split(","))
@@ -257,12 +260,11 @@ class DataSetService(BaseService):
         Returns:
             Lista filtrada de datasets
         """
-        if not hasattr(current_dataset, 'community_id') or not current_dataset.community_id:
+        if not hasattr(current_dataset, "community_id") or not current_dataset.community_id:
             return []
 
         return [
-            ds for ds in datasets
-            if hasattr(ds, 'community_id') and ds.community_id == current_dataset.community_id
+            ds for ds in datasets if hasattr(ds, "community_id") and ds.community_id == current_dataset.community_id
         ]
 
     def create_from_form(self, form, current_user) -> DataSet:
@@ -400,26 +402,23 @@ class MaterialsDatasetService:
     """Service for handling MaterialsDataset operations including CSV parsing"""
 
     # Expected CSV columns (exact names)
-    REQUIRED_COLUMNS = [
-        'material_name',
-        'property_name',
-        'property_value'
-    ]
+    REQUIRED_COLUMNS = ["material_name", "property_name", "property_value"]
 
     OPTIONAL_COLUMNS = [
-        'chemical_formula',
-        'structure_type',
-        'composition_method',
-        'property_unit',
-        'temperature',
-        'pressure',
-        'data_source',
-        'uncertainty',
-        'description'
+        "chemical_formula",
+        "structure_type",
+        "composition_method",
+        "property_unit",
+        "temperature",
+        "pressure",
+        "data_source",
+        "uncertainty",
+        "description",
     ]
 
     def __init__(self):
         from app.modules.dataset.repositories import MaterialsDatasetRepository, MaterialRecordRepository
+
         self.materials_dataset_repository = MaterialsDatasetRepository()
         self.material_record_repository = MaterialRecordRepository()
 
@@ -447,10 +446,10 @@ class MaterialsDatasetService:
         is_valid = len(missing_required) == 0
 
         return {
-            'valid': is_valid,
-            'missing_required': missing_required,
-            'extra_columns': extra_columns,
-            'message': self._build_validation_message(missing_required, extra_columns)
+            "valid": is_valid,
+            "missing_required": missing_required,
+            "extra_columns": extra_columns,
+            "message": self._build_validation_message(missing_required, extra_columns),
         }
 
     def _build_validation_message(self, missing: list, extra: list) -> str:
@@ -468,7 +467,7 @@ class MaterialsDatasetService:
 
         return "; ".join(messages)
 
-    def parse_csv_file(self, csv_file_path: str, encoding: str = 'utf-8') -> dict:
+    def parse_csv_file(self, csv_file_path: str, encoding: str = "utf-8") -> dict:
         """
         Parses a CSV file and returns data ready to create MaterialRecords.
 
@@ -484,31 +483,25 @@ class MaterialsDatasetService:
                 - 'error': error message if failed
                 - 'rows_parsed': number of rows parsed
         """
-        result = {
-            'success': False,
-            'data': [],
-            'validation': None,
-            'error': None,
-            'rows_parsed': 0
-        }
+        result = {"success": False, "data": [], "validation": None, "error": None, "rows_parsed": 0}
 
         try:
             # Check if file exists
             if not os.path.exists(csv_file_path):
-                result['error'] = f"CSV file not found: {csv_file_path}"
+                result["error"] = f"CSV file not found: {csv_file_path}"
                 return result
 
             # Read and validate CSV
-            with open(csv_file_path, 'r', encoding=encoding) as csv_file:
+            with open(csv_file_path, "r", encoding=encoding) as csv_file:
                 csv_reader = csv.DictReader(csv_file)
 
                 # Validate columns
                 columns = csv_reader.fieldnames
                 validation = self.validate_csv_columns(columns)
-                result['validation'] = validation
+                result["validation"] = validation
 
-                if not validation['valid']:
-                    result['error'] = validation['message']
+                if not validation["valid"]:
+                    result["error"] = validation["message"]
                     return result
 
                 # Parse rows
@@ -521,14 +514,14 @@ class MaterialsDatasetService:
                         logger.warning(f"Skipping row {row_num}: {str(e)}")
                         continue
 
-                result['data'] = rows_data
-                result['rows_parsed'] = len(rows_data)
-                result['success'] = True
+                result["data"] = rows_data
+                result["rows_parsed"] = len(rows_data)
+                result["success"] = True
 
         except UnicodeDecodeError:
-            result['error'] = f"Encoding error. Try different encoding (current: {encoding})"
+            result["error"] = f"Encoding error. Try different encoding (current: {encoding})"
         except Exception as e:
-            result['error'] = f"Error parsing CSV: {str(e)}"
+            result["error"] = f"Error parsing CSV: {str(e)}"
             logger.error(f"CSV parsing error: {str(e)}", exc_info=True)
 
         return result
@@ -550,74 +543,73 @@ class MaterialsDatasetService:
         from app.modules.dataset.models import DataSource
 
         # Check required fields
-        if not row.get('material_name', '').strip():
+        if not row.get("material_name", "").strip():
             raise ValueError(f"Row {row_num}: material_name is required")
-        if not row.get('property_name', '').strip():
+        if not row.get("property_name", "").strip():
             raise ValueError(f"Row {row_num}: property_name is required")
-        if not row.get('property_value', '').strip():
+        if not row.get("property_value", "").strip():
             raise ValueError(f"Row {row_num}: property_value is required")
 
         parsed_data = {
             # Required fields
-            'material_name': row['material_name'].strip(),
-            'property_name': row['property_name'].strip(),
-            'property_value': row['property_value'].strip(),
-
+            "material_name": row["material_name"].strip(),
+            "property_name": row["property_name"].strip(),
+            "property_value": row["property_value"].strip(),
             # Optional string fields
-            'chemical_formula': row.get('chemical_formula', '').strip() or None,
-            'structure_type': row.get('structure_type', '').strip() or None,
-            'composition_method': row.get('composition_method', '').strip() or None,
-            'property_unit': row.get('property_unit', '').strip() or None,
-            'description': row.get('description', '').strip() or None,
+            "chemical_formula": row.get("chemical_formula", "").strip() or None,
+            "structure_type": row.get("structure_type", "").strip() or None,
+            "composition_method": row.get("composition_method", "").strip() or None,
+            "property_unit": row.get("property_unit", "").strip() or None,
+            "description": row.get("description", "").strip() or None,
         }
 
         # Parse temperature (Integer)
-        temp_value = row.get('temperature', '').strip()
+        temp_value = row.get("temperature", "").strip()
         if temp_value:
             try:
-                parsed_data['temperature'] = int(temp_value)
+                parsed_data["temperature"] = int(temp_value)
             except ValueError:
                 logger.warning(f"Row {row_num}: Invalid temperature value '{temp_value}', setting to None")
-                parsed_data['temperature'] = None
+                parsed_data["temperature"] = None
         else:
-            parsed_data['temperature'] = None
+            parsed_data["temperature"] = None
 
         # Parse pressure (Integer)
-        pressure_value = row.get('pressure', '').strip()
+        pressure_value = row.get("pressure", "").strip()
         if pressure_value:
             try:
-                parsed_data['pressure'] = int(pressure_value)
+                parsed_data["pressure"] = int(pressure_value)
             except ValueError:
                 logger.warning(f"Row {row_num}: Invalid pressure value '{pressure_value}', setting to None")
-                parsed_data['pressure'] = None
+                parsed_data["pressure"] = None
         else:
-            parsed_data['pressure'] = None
+            parsed_data["pressure"] = None
 
         # Parse uncertainty (Integer)
-        uncertainty_value = row.get('uncertainty', '').strip()
+        uncertainty_value = row.get("uncertainty", "").strip()
         if uncertainty_value:
             try:
-                parsed_data['uncertainty'] = int(uncertainty_value)
+                parsed_data["uncertainty"] = int(uncertainty_value)
             except ValueError:
                 logger.warning(f"Row {row_num}: Invalid uncertainty value '{uncertainty_value}', setting to None")
-                parsed_data['uncertainty'] = None
+                parsed_data["uncertainty"] = None
         else:
-            parsed_data['uncertainty'] = None
+            parsed_data["uncertainty"] = None
 
         # Parse data_source (Enum)
-        data_source_value = row.get('data_source', '').strip().upper()
+        data_source_value = row.get("data_source", "").strip().upper()
         if data_source_value:
             try:
-                parsed_data['data_source'] = DataSource[data_source_value]
+                parsed_data["data_source"] = DataSource[data_source_value]
             except KeyError:
-                valid_sources = ', '.join([e.name for e in DataSource])
+                valid_sources = ", ".join([e.name for e in DataSource])
                 logger.warning(
                     f"Row {row_num}: Invalid data_source '{data_source_value}'. "
                     f"Valid options: {valid_sources}. Setting to None"
                 )
-                parsed_data['data_source'] = None
+                parsed_data["data_source"] = None
         else:
-            parsed_data['data_source'] = None
+            parsed_data["data_source"] = None
 
         return parsed_data
 
@@ -641,40 +633,25 @@ class MaterialsDatasetService:
         # Parse the CSV
         parse_result = self.parse_csv_file(csv_file_path)
 
-        if not parse_result['success']:
-            return {
-                'success': False,
-                'records_created': 0,
-                'error': parse_result['error']
-            }
+        if not parse_result["success"]:
+            return {"success": False, "records_created": 0, "error": parse_result["error"]}
 
         # Create MaterialRecord instances
         records_created = 0
         try:
-            for row_data in parse_result['data']:
-                material_record = MaterialRecord(
-                    materials_dataset_id=materials_dataset.id,
-                    **row_data
-                )
+            for row_data in parse_result["data"]:
+                material_record = MaterialRecord(materials_dataset_id=materials_dataset.id, **row_data)
                 db.session.add(material_record)
                 records_created += 1
 
             db.session.commit()
 
-            return {
-                'success': True,
-                'records_created': records_created,
-                'error': None
-            }
+            return {"success": True, "records_created": records_created, "error": None}
 
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error creating MaterialRecords: {str(e)}", exc_info=True)
-            return {
-                'success': False,
-                'records_created': 0,
-                'error': f"Database error: {str(e)}"
-            }
+            return {"success": False, "records_created": 0, "error": f"Database error: {str(e)}"}
 
     def get_recommendations(self, materials_dataset_id: int, limit: int = 3):
         """
@@ -699,18 +676,21 @@ class MaterialsDatasetService:
             # Check if it has metadata and tags
             if not current_dataset.ds_meta_data or not current_dataset.ds_meta_data.tags:
                 # If no tags, return recent datasets
-                return MaterialsDataset.query.filter(
-                    MaterialsDataset.id != materials_dataset_id,
-                    MaterialsDataset.ds_meta_data_id.isnot(None)
-                ).order_by(MaterialsDataset.created_at.desc()).limit(limit).all()
+                return (
+                    MaterialsDataset.query.filter(
+                        MaterialsDataset.id != materials_dataset_id, MaterialsDataset.ds_meta_data_id.isnot(None)
+                    )
+                    .order_by(MaterialsDataset.created_at.desc())
+                    .limit(limit)
+                    .all()
+                )
 
             # Get tags from current dataset
-            current_tags = set(tag.strip().lower() for tag in current_dataset.ds_meta_data.tags.split(','))
+            current_tags = set(tag.strip().lower() for tag in current_dataset.ds_meta_data.tags.split(","))
 
             # Get all other materials datasets
             all_datasets = MaterialsDataset.query.filter(
-                MaterialsDataset.id != materials_dataset_id,
-                MaterialsDataset.ds_meta_data_id.isnot(None)
+                MaterialsDataset.id != materials_dataset_id, MaterialsDataset.ds_meta_data_id.isnot(None)
             ).all()
 
             # Calculate similarity score for each dataset
@@ -724,14 +704,16 @@ class MaterialsDatasetService:
 
                 # 1. Tag similarity (weight: 3 points per common tag)
                 if dataset.ds_meta_data.tags:
-                    dataset_tags = set(tag.strip().lower() for tag in dataset.ds_meta_data.tags.split(','))
+                    dataset_tags = set(tag.strip().lower() for tag in dataset.ds_meta_data.tags.split(","))
                     common_tags = current_tags.intersection(dataset_tags)
                     score += len(common_tags) * 3
 
                 # 2. Same publication type (weight: 2 points)
-                if (hasattr(dataset.ds_meta_data, 'publication_type') and
-                        hasattr(current_dataset.ds_meta_data, 'publication_type') and
-                        dataset.ds_meta_data.publication_type == current_dataset.ds_meta_data.publication_type):
+                if (
+                    hasattr(dataset.ds_meta_data, "publication_type")
+                    and hasattr(current_dataset.ds_meta_data, "publication_type")
+                    and dataset.ds_meta_data.publication_type == current_dataset.ds_meta_data.publication_type
+                ):
                     score += 2
 
                 # 3. Same author (weight: 1 point)
@@ -750,10 +732,14 @@ class MaterialsDatasetService:
 
             # If not enough recommendations, complete with recent datasets
             if len(result) < limit:
-                recent_datasets = MaterialsDataset.query.filter(
-                    MaterialsDataset.id != materials_dataset_id,
-                    MaterialsDataset.ds_meta_data_id.isnot(None)
-                ).order_by(MaterialsDataset.created_at.desc()).limit(limit - len(result)).all()
+                recent_datasets = (
+                    MaterialsDataset.query.filter(
+                        MaterialsDataset.id != materials_dataset_id, MaterialsDataset.ds_meta_data_id.isnot(None)
+                    )
+                    .order_by(MaterialsDataset.created_at.desc())
+                    .limit(limit - len(result))
+                    .all()
+                )
 
                 # Add only those not already in result
                 result_ids = {d.id for d in result}
@@ -783,8 +769,7 @@ class MaterialsDatasetService:
         from app.modules.dataset.models import MaterialsDataset
 
         return MaterialsDataset.query.filter(
-            MaterialsDataset.id != materials_dataset_id,
-            MaterialsDataset.ds_meta_data_id.isnot(None)
+            MaterialsDataset.id != materials_dataset_id, MaterialsDataset.ds_meta_data_id.isnot(None)
         ).all()
 
     def filter_by_authors(self, datasets, current_dataset):
@@ -804,7 +789,8 @@ class MaterialsDatasetService:
         current_authors = {a.name.strip().lower() for a in current_dataset.ds_meta_data.authors}
 
         return [
-            ds for ds in datasets
+            ds
+            for ds in datasets
             if ds.ds_meta_data
             and ds.ds_meta_data.authors
             and any(a.name.strip().lower() in current_authors for a in ds.ds_meta_data.authors)
@@ -827,7 +813,8 @@ class MaterialsDatasetService:
         current_tags = {t.strip().lower() for t in current_dataset.ds_meta_data.tags.split(",")}
 
         return [
-            ds for ds in datasets
+            ds
+            for ds in datasets
             if ds.ds_meta_data
             and ds.ds_meta_data.tags
             and any(t.strip().lower() in current_tags for t in ds.ds_meta_data.tags.split(","))
@@ -850,6 +837,7 @@ class MaterialsDatasetService:
             return []
 
         return [
-            ds for ds in datasets
+            ds
+            for ds in datasets
             if any(prop.strip().lower() in current_properties for prop in ds.get_unique_properties())
         ]

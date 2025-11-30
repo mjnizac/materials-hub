@@ -68,7 +68,7 @@ class FakenodoService(BaseService):
                 "conceptrecid": f"fakenodo-{new_deposition.id}",
                 "id": new_deposition.id,
                 "metadata": metadata,
-                "message": "Dataset created successfully in fakenodo."
+                "message": "Dataset created successfully in fakenodo.",
             }
         except Exception as e:
             raise Exception(f"Failed to create local deposition: {str(e)}")
@@ -94,7 +94,7 @@ class FakenodoService(BaseService):
             "filename": uvl_filename,
             "filesize": os.path.getsize(file_path),
             "checksum": calculate_checksum(file_path),
-            "message": "File uploaded successfully to fakenodo."
+            "message": "File uploaded successfully to fakenodo.",
         }
 
         return response
@@ -122,7 +122,7 @@ class FakenodoService(BaseService):
                 "id": deposition_id,
                 "status": "published",
                 "conceptdoi": f"10.5281/fakenodo.{deposition_id}",
-                "message": "Deposition published successfully in fakenodo."
+                "message": "Deposition published successfully in fakenodo.",
             }
             return response
 
@@ -148,7 +148,7 @@ class FakenodoService(BaseService):
             "doi": deposition.doi,
             "metadata": deposition.dep_metadata,
             "status": deposition.status,
-            "message": "Deposition retrieved successfully from fakenodo."
+            "message": "Deposition retrieved successfully from fakenodo.",
         }
         return response
 
@@ -167,6 +167,7 @@ class FakenodoService(BaseService):
 
 def calculate_checksum(file_path):
     import hashlib
+
     hash_md5 = hashlib.md5()
     with open(file_path, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):

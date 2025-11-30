@@ -45,15 +45,12 @@ def db_migrate(message):
         click.echo(click.style("[3/4] ", fg="white") + "Generating migration file...")
         try:
             result = subprocess.run(
-                ["flask", "db", "migrate", "-m", message],
-                capture_output=True,
-                text=True,
-                timeout=30
+                ["flask", "db", "migrate", "-m", message], capture_output=True, text=True, timeout=30
             )
 
             # Parse the output to show detected changes
             if result.stdout:
-                lines = result.stdout.split('\n')
+                lines = result.stdout.split("\n")
                 changes_detected = False
                 for line in lines:
                     if "Detected" in line or "detected" in line:
@@ -89,12 +86,7 @@ def db_migrate(message):
         click.echo(click.style("[4/4] ", fg="white") + "Validating migration file...", nl=False)
         try:
             # Check if migration was created by running flask db current
-            result = subprocess.run(
-                ["flask", "db", "heads"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+            result = subprocess.run(["flask", "db", "heads"], capture_output=True, text=True, timeout=10)
             if result.returncode == 0:
                 click.echo(click.style(" ✓", fg="green"))
             else:
@@ -105,8 +97,12 @@ def db_migrate(message):
         # Success message and next steps
         click.echo(click.style("\nMigration created successfully!", fg="green", bold=True))
         click.echo(click.style("\nNext steps:", fg="cyan"))
-        click.echo(click.style("  1. ", fg="white") + "Review the migration file in " +
-                   click.style("migrations/versions/", fg="yellow"))
-        click.echo(click.style("  2. ", fg="white") + "Run " +
-                   click.style("rosemary db:upgrade", fg="cyan") + " to apply it")
+        click.echo(
+            click.style("  1. ", fg="white")
+            + "Review the migration file in "
+            + click.style("migrations/versions/", fg="yellow")
+        )
+        click.echo(
+            click.style("  2. ", fg="white") + "Run " + click.style("rosemary db:upgrade", fg="cyan") + " to apply it"
+        )
         click.echo(click.style("  3. ", fg="white") + "Test the migration in a safe environment first\n")

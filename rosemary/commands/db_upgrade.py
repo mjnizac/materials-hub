@@ -47,12 +47,7 @@ def db_upgrade(no_backup):
         # Step 2: Check for pending migrations
         click.echo(click.style("[2/5] ", fg="white") + "Checking for pending migrations...")
         try:
-            current_result = subprocess.run(
-                ["flask", "db", "current"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+            current_result = subprocess.run(["flask", "db", "current"], capture_output=True, text=True, timeout=10)
 
             # Check if already at head
             if "(head)" in current_result.stdout:
@@ -97,24 +92,21 @@ def db_upgrade(no_backup):
                     "--single-transaction",
                     "--routines",
                     "--triggers",
-                    db_name
+                    db_name,
                 ]
 
                 with open(backup_file, "w") as f:
-                    result = subprocess.run(
-                        dump_cmd,
-                        stdout=f,
-                        stderr=subprocess.PIPE,
-                        timeout=120
-                    )
+                    result = subprocess.run(dump_cmd, stdout=f, stderr=subprocess.PIPE, timeout=120)
 
                 if result.returncode == 0:
                     # Get file size
                     size_mb = os.path.getsize(backup_file) / (1024 * 1024)
                     click.echo(click.style(" ✓", fg="green"))
-                    click.echo(click.style("  Backup saved: ", fg="white") +
-                               click.style(f"{backup_file}", fg="cyan") +
-                               click.style(f" ({size_mb:.2f} MB)", fg="white"))
+                    click.echo(
+                        click.style("  Backup saved: ", fg="white")
+                        + click.style(f"{backup_file}", fg="cyan")
+                        + click.style(f" ({size_mb:.2f} MB)", fg="white")
+                    )
                 else:
                     click.echo(click.style(" ⚠", fg="yellow"))
                     click.echo(click.style(f"  Warning: Backup failed - {result.stderr.decode()}", fg="yellow"))
@@ -143,10 +135,7 @@ def db_upgrade(no_backup):
             start_time = time.time()
 
             result = subprocess.run(
-                ["flask", "db", "upgrade"],
-                capture_output=True,
-                text=True,
-                timeout=300  # 5 minutes timeout
+                ["flask", "db", "upgrade"], capture_output=True, text=True, timeout=300  # 5 minutes timeout
             )
 
             elapsed_time = time.time() - start_time
@@ -154,7 +143,7 @@ def db_upgrade(no_backup):
             if result.returncode == 0:
                 # Parse output to show which migrations were applied
                 if result.stdout:
-                    lines = result.stdout.split('\n')
+                    lines = result.stdout.split("\n")
                     for line in lines:
                         if "Running upgrade" in line:
                             # Extract migration info
@@ -180,15 +169,10 @@ def db_upgrade(no_backup):
                                 f"--port={db_port}",
                                 f"--user={db_user}",
                                 f"--password={db_password}",
-                                db_name
+                                db_name,
                             ]
                             with open(backup_file, "r") as f:
-                                restore_result = subprocess.run(
-                                    restore_cmd,
-                                    stdin=f,
-                                    capture_output=True,
-                                    timeout=120
-                                )
+                                restore_result = subprocess.run(restore_cmd, stdin=f, capture_output=True, timeout=120)
                             if restore_result.returncode == 0:
                                 click.echo(click.style(" ✓", fg="green"))
                                 click.echo(click.style("  Backup restored successfully", fg="green"))
@@ -211,22 +195,19 @@ def db_upgrade(no_backup):
         # Step 5: Verify migration state
         click.echo(click.style("[5/5] ", fg="white") + "Verifying migration state...", nl=False)
         try:
-            result = subprocess.run(
-                ["flask", "db", "current"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+            result = subprocess.run(["flask", "db", "current"], capture_output=True, text=True, timeout=10)
 
             if result.returncode == 0 and "(head)" in result.stdout:
                 click.echo(click.style(" ✓", fg="green"))
                 # Extract current revision
-                for line in result.stdout.split('\n'):
+                for line in result.stdout.split("\n"):
                     if line.strip() and "->" not in line:
                         revision = line.split()[0] if line.split() else "unknown"
-                        click.echo(click.style("  Current revision: ", fg="white") +
-                                   click.style(f"{revision[:12]}", fg="cyan") +
-                                   click.style(" (head)", fg="green"))
+                        click.echo(
+                            click.style("  Current revision: ", fg="white")
+                            + click.style(f"{revision[:12]}", fg="cyan")
+                            + click.style(" (head)", fg="green")
+                        )
                         break
             else:
                 click.echo(click.style(" ⚠", fg="yellow"))
@@ -236,6 +217,8 @@ def db_upgrade(no_backup):
 
         # Success message
         click.echo(click.style("\nDatabase upgraded successfully!", fg="green", bold=True))
-        click.echo(click.style("\nRun ", fg="white") +
-                   click.style("rosemary db:status", fg="cyan") +
-                   click.style(" to verify the current state.\n", fg="white"))
+        click.echo(
+            click.style("\nRun ", fg="white")
+            + click.style("rosemary db:status", fg="cyan")
+            + click.style(" to verify the current state.\n", fg="white")
+        )

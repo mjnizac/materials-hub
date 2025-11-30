@@ -100,6 +100,7 @@ class BaseDataset(db.Model):
 
     def get_uvlhub_doi(self):
         from app.modules.dataset.services import DataSetService
+
         return DataSetService().get_uvlhub_doi(self)
 
     # Abstract methods to be implemented by subclasses
@@ -121,6 +122,7 @@ class BaseDataset(db.Model):
 
     def get_file_total_size_for_human(self):
         from app.modules.dataset.services import SizeService
+
         return SizeService().get_human_readable_size(self.get_file_total_size())
 
     def to_dict(self):
@@ -147,7 +149,7 @@ class BaseDataset(db.Model):
 
 # UVL-specific dataset (original DataSet functionality)
 class UVLDataset(BaseDataset):
-    __tablename__ = 'data_set'  # Keep original table name for backward compatibility
+    __tablename__ = "data_set"  # Keep original table name for backward compatibility
 
     # Relationships specific to UVL datasets
     ds_meta_data = db.relationship("DSMetaData", backref=db.backref("data_set", uselist=False))
@@ -183,19 +185,21 @@ class UVLDataset(BaseDataset):
     def to_dict(self):
         """Extended dictionary with UVL-specific data"""
         base_dict = super().to_dict()
-        base_dict.update({
-            "files": [file.to_dict() for fm in self.feature_models for file in fm.files],
-            "files_count": self.get_files_count(),
-            "total_size_in_bytes": self.get_file_total_size(),
-            "total_size_in_human_format": self.get_file_total_size_for_human(),
-            "dataset_type": "uvl"
-        })
+        base_dict.update(
+            {
+                "files": [file.to_dict() for fm in self.feature_models for file in fm.files],
+                "files_count": self.get_files_count(),
+                "total_size_in_bytes": self.get_file_total_size(),
+                "total_size_in_human_format": self.get_file_total_size_for_human(),
+                "dataset_type": "uvl",
+            }
+        )
         return base_dict
 
 
 # Material record model - represents a single row in the materials CSV
 class MaterialRecord(db.Model):
-    __tablename__ = 'material_record'
+    __tablename__ = "material_record"
 
     id = db.Column(db.Integer, primary_key=True)
     materials_dataset_id = db.Column(db.Integer, db.ForeignKey("materials_dataset.id"), nullable=False)
@@ -237,7 +241,7 @@ class MaterialRecord(db.Model):
 
 # Materials-specific dataset (for CSV materials data)
 class MaterialsDataset(BaseDataset):
-    __tablename__ = 'materials_dataset'
+    __tablename__ = "materials_dataset"
 
     # Fields specific to materials datasets
     csv_file_path = db.Column(db.String(512))
@@ -301,18 +305,20 @@ class MaterialsDataset(BaseDataset):
     def to_dict(self):
         """Extended dictionary with materials-specific data"""
         base_dict = super().to_dict()
-        base_dict.update({
-            "csv_file_path": self.csv_file_path,
-            "materials_count": self.get_materials_count(),
-            "unique_materials": self.get_unique_materials(),
-            "unique_properties": self.get_unique_properties(),
-            "material_records": [record.to_dict() for record in self.material_records],
-            "files": [file.to_dict() for file in self.files()] if self.files() else [],
-            "files_count": self.get_files_count(),
-            "total_size_in_bytes": self.get_file_total_size(),
-            "total_size_in_human_format": self.get_file_total_size_for_human(),
-            "dataset_type": "materials"
-        })
+        base_dict.update(
+            {
+                "csv_file_path": self.csv_file_path,
+                "materials_count": self.get_materials_count(),
+                "unique_materials": self.get_unique_materials(),
+                "unique_properties": self.get_unique_properties(),
+                "material_records": [record.to_dict() for record in self.material_records],
+                "files": [file.to_dict() for file in self.files()] if self.files() else [],
+                "files_count": self.get_files_count(),
+                "total_size_in_bytes": self.get_file_total_size(),
+                "total_size_in_human_format": self.get_file_total_size_for_human(),
+                "dataset_type": "materials",
+            }
+        )
         return base_dict
 
 
