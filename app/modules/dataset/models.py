@@ -248,8 +248,10 @@ class MaterialsDataset(BaseDataset):
 
     # Relationships specific to Materials datasets
     user = db.relationship("User", backref=db.backref("materials_datasets", lazy=True))
-    ds_meta_data = db.relationship("DSMetaData", backref=db.backref("materials_dataset", uselist=False))
+    ds_meta_data = db.relationship("DSMetaData", backref=db.backref("materials_dataset", uselist=False), cascade="all, delete")
     material_records = db.relationship("MaterialRecord", backref="materials_dataset", lazy=True, cascade="all, delete")
+    download_records = db.relationship("DSDownloadRecord", backref="materials_dataset", lazy=True, cascade="all, delete")
+    view_records = db.relationship("DSViewRecord", backref="materials_dataset", lazy=True, cascade="all, delete")
 
     def files(self):
         """Get CSV files for materials dataset"""
@@ -304,6 +306,8 @@ class MaterialsDataset(BaseDataset):
 
     def to_dict(self):
         """Extended dictionary with materials-specific data"""
+        from flask import url_for
+
         base_dict = super().to_dict()
         base_dict.update(
             {
@@ -317,6 +321,7 @@ class MaterialsDataset(BaseDataset):
                 "total_size_in_bytes": self.get_file_total_size(),
                 "total_size_in_human_format": self.get_file_total_size_for_human(),
                 "dataset_type": "materials",
+                "url": url_for('dataset.view_materials_dataset', dataset_id=self.id, _external=True),
             }
         )
         return base_dict
@@ -330,7 +335,7 @@ DataSet = UVLDataset
 class DSDownloadRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    dataset_id = db.Column(db.Integer, db.ForeignKey("data_set.id"))
+    dataset_id = db.Column(db.Integer, db.ForeignKey("materials_dataset.id"))
     download_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     download_cookie = db.Column(db.String(36), nullable=False)  # Assuming UUID4 strings
 
@@ -346,7 +351,7 @@ class DSDownloadRecord(db.Model):
 class DSViewRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    dataset_id = db.Column(db.Integer, db.ForeignKey("data_set.id"))
+    dataset_id = db.Column(db.Integer, db.ForeignKey("materials_dataset.id"))
     view_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     view_cookie = db.Column(db.String(36), nullable=False)  # Assuming UUID4 strings
 

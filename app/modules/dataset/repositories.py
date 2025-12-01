@@ -211,6 +211,74 @@ class MaterialsDatasetRepository(BaseRepository):
         """Get all materials datasets ordered by creation date (newest first)"""
         return self.model.query.order_by(desc(self.model.created_at)).all()
 
+    def get_top_downloads_global(self, limit: int = 10, days: int = 30):
+        """
+        Top global por descargas en los últimos 'days' días para MaterialsDataset.
+        Incluye datasets con 0 descargas en el rango (outer join).
+        """
+        from datetime import datetime, timedelta, timezone
+        from sqlalchemy import and_, func
+
+        from app.modules.dataset.models import DSDownloadRecord, DSMetaData, MaterialsDataset
+
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+
+        q = (
+            self.model.query.join(DSMetaData, DSMetaData.id == MaterialsDataset.ds_meta_data_id)
+            .outerjoin(
+                DSDownloadRecord,
+                and_(
+                    DSDownloadRecord.dataset_id == MaterialsDataset.id,
+                    DSDownloadRecord.download_date >= since,
+                ),
+            )
+            .with_entities(
+                MaterialsDataset.id.label("dataset_id"),
+                DSMetaData.title.label("title"),
+                DSMetaData.dataset_doi.label("doi"),
+                func.coalesce(func.count(DSDownloadRecord.id), 0).label("downloads"),
+            )
+            .filter(DSMetaData.dataset_doi.isnot(None))
+            .group_by(MaterialsDataset.id, DSMetaData.title, DSMetaData.dataset_doi)
+            .order_by(func.coalesce(func.count(DSDownloadRecord.id), 0).desc())
+            .limit(limit)
+        )
+        return q.all()
+
+    def get_top_views_global(self, limit: int = 10, days: int = 30):
+        """
+        Top global por vistas en los últimos 'days' días para MaterialsDataset.
+        Incluye datasets con 0 vistas en el rango (outer join).
+        """
+        from datetime import datetime, timedelta, timezone
+        from sqlalchemy import and_, func
+
+        from app.modules.dataset.models import DSMetaData, DSViewRecord, MaterialsDataset
+
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+
+        q = (
+            self.model.query.join(DSMetaData, DSMetaData.id == MaterialsDataset.ds_meta_data_id)
+            .outerjoin(
+                DSViewRecord,
+                and_(
+                    DSViewRecord.dataset_id == MaterialsDataset.id,
+                    DSViewRecord.view_date >= since,
+                ),
+            )
+            .with_entities(
+                MaterialsDataset.id.label("dataset_id"),
+                DSMetaData.title.label("title"),
+                DSMetaData.dataset_doi.label("doi"),
+                func.coalesce(func.count(DSViewRecord.id), 0).label("views"),
+            )
+            .filter(DSMetaData.dataset_doi.isnot(None))
+            .group_by(MaterialsDataset.id, DSMetaData.title, DSMetaData.dataset_doi)
+            .order_by(func.coalesce(func.count(DSViewRecord.id), 0).desc())
+            .limit(limit)
+        )
+        return q.all()
+
 
 class MaterialRecordRepository(BaseRepository):
     def __init__(self):

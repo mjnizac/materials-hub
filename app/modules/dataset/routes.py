@@ -1,14 +1,14 @@
+import csv
 import json
 import logging
 import os
 import shutil
-import tempfile
 import uuid
 from datetime import datetime, timezone
-from zipfile import ZipFile
 
 from flask import (
     abort,
+    flash,
     jsonify,
     make_response,
     redirect,
@@ -20,14 +20,12 @@ from flask import (
 from flask_login import current_user, login_required
 
 from app.modules.dataset import dataset_bp
-from app.modules.dataset.forms import DataSetForm
-from app.modules.dataset.models import DSDownloadRecord
+from app.modules.dataset.forms import DataSetForm, MaterialRecordForm
+from app.modules.dataset.models import DSDownloadRecord, DSViewRecord
 from app.modules.dataset.repositories import MaterialRecordRepository, MaterialsDatasetRepository
 from app.modules.dataset.services import (
     AuthorService,
-    DataSetService,
     DOIMappingService,
-    DSDownloadRecordService,
     DSMetaDataService,
     DSViewRecordService,
     MaterialsDatasetService,
@@ -37,7 +35,6 @@ from app.modules.zenodo.services import ZenodoService
 from core.configuration.configuration import USE_FAKENODO
 
 logger = logging.getLogger(__name__)
-dataset_service = DataSetService()
 author_service = AuthorService()
 dsmetadata_service = DSMetaDataService()
 fakenodo_service = FakenodoService()
@@ -49,6 +46,77 @@ ds_view_record_service = DSViewRecordService()
 materials_dataset_service = MaterialsDatasetService()
 materials_dataset_repository = MaterialsDatasetRepository()
 material_record_repository = MaterialRecordRepository()
+
+
+# ==============================
+# HELPER FUNCTIONS
+# ==============================
+def regenerate_csv_for_dataset(dataset_id):
+    """Regenerate CSV file for a MaterialsDataset with current records"""
+    from app import db
+
+    dataset = materials_dataset_repository.get_by_id(dataset_id)
+    if not dataset:
+        return False
+
+    # Get all records for this dataset
+    records = material_record_repository.get_by_dataset(dataset_id)
+
+    if not dataset.csv_file_path:
+        # Create new CSV file path if doesn't exist
+        csv_dir = "uploads/materials_csv"
+        os.makedirs(csv_dir, exist_ok=True)
+        csv_filename = f"materials_dataset_{dataset_id}.csv"
+        csv_path = os.path.join(csv_dir, csv_filename)
+        dataset.csv_file_path = csv_path
+        db.session.commit()
+    else:
+        csv_path = dataset.csv_file_path
+        # Ensure absolute path
+        if not os.path.isabs(csv_path):
+            csv_path = os.path.abspath(csv_path)
+
+    # Write CSV file
+    try:
+        with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
+            fieldnames = [
+                "material_name",
+                "chemical_formula",
+                "structure_type",
+                "composition_method",
+                "property_name",
+                "property_value",
+                "property_unit",
+                "temperature",
+                "pressure",
+                "data_source",
+                "uncertainty",
+                "description",
+            ]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for record in records:
+                writer.writerow(
+                    {
+                        "material_name": record.material_name,
+                        "chemical_formula": record.chemical_formula or "",
+                        "structure_type": record.structure_type or "",
+                        "composition_method": record.composition_method or "",
+                        "property_name": record.property_name,
+                        "property_value": record.property_value,
+                        "property_unit": record.property_unit or "",
+                        "temperature": record.temperature if record.temperature is not None else "",
+                        "pressure": record.pressure if record.pressure is not None else "",
+                        "data_source": record.data_source.value if record.data_source else "",
+                        "uncertainty": record.uncertainty if record.uncertainty is not None else "",
+                        "description": record.description or "",
+                    }
+                )
+        return True
+    except Exception as e:
+        logger.exception(f"Error regenerating CSV file: {e}")
+        return False
 
 
 # ==============================
@@ -64,10 +132,12 @@ def create_dataset():
             return jsonify({"message": form.errors}), 400
 
         try:
-            logger.info("Creating dataset...")
-            dataset = dataset_service.create_from_form(form=form, current_user=current_user)
+            logger.info("Creating MaterialsDataset...")
+
+            # Always create MaterialsDataset
+            dataset = materials_dataset_service.create_from_form(form=form, current_user=current_user)
+
             logger.info(f"Created dataset: {dataset}")
-            dataset_service.move_feature_models(dataset)
         except Exception as exc:
             logger.exception(f"Exception while create dataset data in local {exc}")
             return jsonify({"Exception while create dataset data in local: ": str(exc)}), 400
@@ -87,21 +157,21 @@ def create_dataset():
                 deposition_id = data.get("id")
 
                 # update dataset with deposition id in Fakenodo
-                dataset_service.update_dsmetadata(dataset.ds_meta_data_id, deposition_id=deposition_id)
+                from app.modules.dataset.services import DSMetaDataService
+
+                dsmetadata_service = DSMetaDataService()
+                dsmetadata_service.update(dataset.ds_meta_data_id, deposition_id=deposition_id)
 
                 try:
-                    # iterate for each feature model (one feature model = one request to Fakenodo)
-                    for feature_model in dataset.feature_models:
-                        fakenodo_service.upload_file(dataset, deposition_id, feature_model)
-
-                    # publish deposition
+                    # For MaterialsDataset, just publish without uploading files yet
+                    # Files (CSV) will be uploaded later via the upload_materials_csv route
                     fakenodo_service.publish_deposition(deposition_id)
 
                     # update DOI
                     deposition_doi = fakenodo_service.get_doi(deposition_id)
-                    dataset_service.update_dsmetadata(dataset.ds_meta_data_id, dataset_doi=deposition_doi)
+                    dsmetadata_service.update(dataset.ds_meta_data_id, dataset_doi=deposition_doi)
                 except Exception as e:
-                    msg = f"it has not been possible upload feature models in Fakenodo and update the DOI: {e}"
+                    msg = f"it has not been possible to publish in Fakenodo and update the DOI: {e}"
                     return jsonify({"message": msg}), 200
         else:
             # send dataset as deposition to Zenodo
@@ -119,28 +189,31 @@ def create_dataset():
                 deposition_id = data.get("id")
 
                 # update dataset with deposition id in Zenodo
-                dataset_service.update_dsmetadata(dataset.ds_meta_data_id, deposition_id=deposition_id)
+                from app.modules.dataset.services import DSMetaDataService
+
+                dsmetadata_service = DSMetaDataService()
+                dsmetadata_service.update(dataset.ds_meta_data_id, deposition_id=deposition_id)
 
                 try:
-                    # iterate for each feature model (one feature model = one request to Zenodo)
-                    for feature_model in dataset.feature_models:
-                        zenodo_service.upload_file(dataset, deposition_id, feature_model)
-
-                    # publish deposition
+                    # For MaterialsDataset, just publish without uploading files yet
                     zenodo_service.publish_deposition(deposition_id)
 
                     # update DOI
                     deposition_doi = zenodo_service.get_doi(deposition_id)
-                    dataset_service.update_dsmetadata(dataset.ds_meta_data_id, dataset_doi=deposition_doi)
+                    dsmetadata_service.update(dataset.ds_meta_data_id, dataset_doi=deposition_doi)
                 except Exception as e:
-                    msg = f"it has not been possible upload feature models in Zenodo and update the DOI: {e}"
+                    msg = f"it has not been possible to publish in Zenodo and update the DOI: {e}"
                     return jsonify({"message": msg}), 200
 
         file_path = current_user.temp_folder()
         if os.path.exists(file_path) and os.path.isdir(file_path):
             shutil.rmtree(file_path)
 
-        return jsonify({"message": "Everything works!"}), 200
+        # Always redirect to CSV upload for MaterialsDataset
+        return jsonify({
+            "message": "Materials dataset created successfully!",
+            "redirect_url": url_for('dataset.upload_materials_csv', dataset_id=dataset.id)
+        }), 200
 
     return render_template("dataset/upload_dataset.html", form=form, use_fakenodo=USE_FAKENODO)
 
@@ -148,11 +221,11 @@ def create_dataset():
 @dataset_bp.route("/dataset/list", methods=["GET", "POST"])
 @login_required
 def list_dataset():
-    return render_template(
-        "dataset/list_datasets.html",
-        datasets=dataset_service.get_synchronized(current_user.id),
-        local_datasets=dataset_service.get_unsynchronized(current_user.id),
-    )
+    """List all MaterialsDatasets for the current user"""
+    # Only show datasets that have CSV files uploaded (complete datasets)
+    all_datasets = materials_dataset_repository.get_by_user(current_user.id)
+    datasets = [d for d in all_datasets if d.csv_file_path]
+    return render_template("dataset/list_materials_datasets.html", datasets=datasets)
 
 
 @dataset_bp.route("/dataset/file/upload", methods=["POST"])
@@ -211,42 +284,57 @@ def delete():
 
 @dataset_bp.route("/dataset/download/<int:dataset_id>", methods=["GET"])
 def download_dataset(dataset_id):
-    dataset = dataset_service.get_or_404(dataset_id)
+    """Download CSV file for MaterialsDataset"""
+    logger.info(f"Attempting to download dataset {dataset_id}")
+    dataset = materials_dataset_repository.get_by_id(dataset_id)
 
-    file_path = f"uploads/user_{dataset.user_id}/dataset_{dataset.id}/"
-    temp_dir = tempfile.mkdtemp()
-    zip_path = os.path.join(temp_dir, f"dataset_{dataset_id}.zip")
+    if not dataset:
+        logger.error(f"MaterialsDataset {dataset_id} not found")
+        abort(404, description="MaterialsDataset not found")
 
-    with ZipFile(zip_path, "w") as zipf:
-        for subdir, dirs, files in os.walk(file_path):
-            for file in files:
-                full_path = os.path.join(subdir, file)
-                relative_path = os.path.relpath(full_path, file_path)
-                zipf.write(full_path, arcname=os.path.join(os.path.basename(zip_path[:-4]), relative_path))
+    logger.info(f"Dataset found. CSV path: {dataset.csv_file_path}")
 
-    user_cookie = request.cookies.get("download_cookie")
-    if not user_cookie:
-        user_cookie = str(uuid.uuid4())
-        resp = make_response(send_from_directory(temp_dir, f"dataset_{dataset_id}.zip", as_attachment=True))
-        resp.set_cookie("download_cookie", user_cookie)
-    else:
-        resp = send_from_directory(temp_dir, f"dataset_{dataset_id}.zip", as_attachment=True)
+    if not dataset.csv_file_path:
+        logger.error(f"Dataset {dataset_id} has no CSV file path")
+        abort(404, description="No CSV file associated with this dataset")
 
-    existing_record = DSDownloadRecord.query.filter_by(
-        user_id=current_user.id if current_user.is_authenticated else None,
+    # Convert to absolute path if relative
+    csv_path = dataset.csv_file_path
+    if not os.path.isabs(csv_path):
+        csv_path = os.path.abspath(csv_path)
+        logger.info(f"Converted to absolute path: {csv_path}")
+
+    if not os.path.exists(csv_path):
+        logger.error(f"CSV file not found at path: {csv_path}")
+        abort(404, description="CSV file not found at expected location")
+
+    csv_dir = os.path.dirname(csv_path)
+    csv_filename = os.path.basename(csv_path)
+    logger.info(f"Sending file: {csv_filename} from directory: {csv_dir}")
+
+    # Record download
+    cookie = request.cookies.get("download_cookie")
+    if not cookie:
+        cookie = str(uuid.uuid4())
+
+    user_id = current_user.id if current_user.is_authenticated else None
+
+    download_record = DSDownloadRecord(
+        user_id=user_id,
         dataset_id=dataset_id,
-        download_cookie=user_cookie,
-    ).first()
+        download_date=datetime.now(timezone.utc),
+        download_cookie=cookie,
+    )
 
-    if not existing_record:
-        DSDownloadRecordService().create(
-            user_id=current_user.id if current_user.is_authenticated else None,
-            dataset_id=dataset_id,
-            download_date=datetime.now(timezone.utc),
-            download_cookie=user_cookie,
-        )
+    from app import db
 
-    return resp
+    db.session.add(download_record)
+    db.session.commit()
+
+    response = make_response(send_from_directory(csv_dir, csv_filename, as_attachment=True))
+    response.set_cookie("download_cookie", cookie, max_age=60 * 60 * 24 * 365 * 2)  # 2 years
+
+    return response
 
 
 # ==============================
@@ -262,93 +350,12 @@ def subdomain_index(doi):
     if not ds_meta_data:
         abort(404)
 
-    dataset = ds_meta_data.data_set
-    recommended_datasets = dataset_service.get_recommendations(dataset.id, limit=5)
-
-    user_cookie = ds_view_record_service.create_cookie(dataset=dataset)
-
-    resp = make_response(
-        render_template("dataset/view_dataset.html", dataset=dataset, recommended_datasets=recommended_datasets)
-    )
-    resp.set_cookie("view_cookie", user_cookie)
-    return resp
-
-
-@dataset_bp.route("/dataset/<int:dataset_id>/recommendations")
-def dataset_recommendations(dataset_id):
-    """API para devolver datasets recomendados filtrados y paginados (AJAX)."""
-    page = request.args.get("page", 1, type=int)
-    filter_type = request.args.get("filter_type", None, type=str)
-
-    current_dataset = dataset_service.get_or_404(dataset_id)
-    query = dataset_service.get_all_except(dataset_id)
-
-    # Aplicar filtros usando los métodos del service
-    if filter_type == "authors":
-        query = dataset_service.filter_by_authors(query, current_dataset)
-    elif filter_type == "tags":
-        query = dataset_service.filter_by_tags(query, current_dataset)
-    elif filter_type == "communities":
-        query = dataset_service.filter_by_community(query, current_dataset)
-
-    # Paginación
-    per_page = 5
-    start = (page - 1) * per_page
-    end = start + per_page
-    paginated = query[start:end]
-    total_pages = (len(query) + per_page - 1) // per_page
-
-    html = render_template("dataset/recommendations_table.html", recommended_datasets=paginated)
-
-    return jsonify({"html": html, "page": page, "total_pages": total_pages})
-
-
-@dataset_bp.route("/doi/<path:doi>/recommendations")
-def dataset_recommendations_by_doi(doi):
-    """Devuelve datasets recomendados filtrados y paginados cuando se usa DOI."""
-    ds_meta_data = dsmetadata_service.filter_by_doi(doi)
-    if not ds_meta_data:
-        abort(404)
-
-    dataset = ds_meta_data.data_set
-    dataset_id = dataset.id
-
-    page = request.args.get("page", 1, type=int)
-    filter_type = request.args.get("filter_type", None, type=str)
-
-    current_dataset = dataset_service.get_or_404(dataset_id)
-    query = dataset_service.get_all_except(dataset_id)
-
-    # Aplicar filtros usando los métodos del service
-    if filter_type == "authors":
-        query = dataset_service.filter_by_authors(query, current_dataset)
-    elif filter_type == "tags":
-        query = dataset_service.filter_by_tags(query, current_dataset)
-    elif filter_type == "communities":
-        query = dataset_service.filter_by_community(query, current_dataset)
-
-    # Paginación
-    per_page = 5
-    start = (page - 1) * per_page
-    end = start + per_page
-    paginated = query[start:end]
-    total_pages = (len(query) + per_page - 1) // per_page
-
-    html = render_template("dataset/recommendations_table.html", recommended_datasets=paginated)
-
-    return jsonify({"html": html, "page": page, "total_pages": total_pages})
-
-
-@dataset_bp.route("/dataset/unsynchronized/<int:dataset_id>/", methods=["GET"])
-@login_required
-def get_unsynchronized_dataset(dataset_id):
-    dataset = dataset_service.get_unsynchronized_dataset(current_user.id, dataset_id)
+    # Get MaterialsDataset
+    dataset = ds_meta_data.materials_dataset
     if not dataset:
         abort(404)
 
-    recommended_datasets = dataset_service.get_recommendations(dataset_id, limit=3)
-
-    return render_template("dataset/view_dataset.html", dataset=dataset, recommended_datasets=recommended_datasets)
+    return redirect(url_for('dataset.view_materials_dataset', dataset_id=dataset.id))
 
 
 @dataset_bp.route("/datasets/top", methods=["GET"])
@@ -365,7 +372,7 @@ def view_top_global():
     if not limit or limit < 1:
         limit = 10
 
-    datasets = dataset_service.get_top_global(metric=metric, limit=limit, days=days)
+    datasets = materials_dataset_service.get_top_global(metric=metric, limit=limit, days=days)
 
     return render_template(
         "dataset/top_global.html",
@@ -379,14 +386,6 @@ def view_top_global():
 # ==================== MaterialsDataset Routes ====================
 
 
-@dataset_bp.route("/materials/list", methods=["GET"])
-@login_required
-def list_materials_datasets():
-    """List all MaterialsDatasets for the current user"""
-    datasets = materials_dataset_repository.get_by_user(current_user.id)
-    return render_template("dataset/list_materials_datasets.html", datasets=datasets)
-
-
 @dataset_bp.route("/materials/<int:dataset_id>", methods=["GET"])
 def view_materials_dataset(dataset_id):
     """View details of a MaterialsDataset (public view)"""
@@ -394,6 +393,41 @@ def view_materials_dataset(dataset_id):
 
     if not dataset:
         abort(404)
+
+    # If dataset has no CSV and user is the owner, redirect to upload page
+    if not dataset.csv_file_path:
+        if current_user.is_authenticated and current_user.id == dataset.user_id:
+            flash("Please upload a CSV file to complete your dataset.", "warning")
+            return redirect(url_for("dataset.upload_materials_csv", dataset_id=dataset.id))
+        else:
+            # Non-owners cannot view incomplete datasets
+            abort(404, description="This dataset is incomplete and cannot be viewed")
+
+    # Record view
+    view_cookie = request.cookies.get("view_cookie")
+    if not view_cookie:
+        view_cookie = str(uuid.uuid4())
+
+    user_id = current_user.id if current_user.is_authenticated else None
+
+    # Check if this view already exists to avoid duplicates
+    from app import db
+
+    existing_view = (
+        db.session.query(DSViewRecord)
+        .filter_by(dataset_id=dataset_id, view_cookie=view_cookie)
+        .first()
+    )
+
+    if not existing_view:
+        view_record = DSViewRecord(
+            user_id=user_id,
+            dataset_id=dataset_id,
+            view_date=datetime.now(timezone.utc),
+            view_cookie=view_cookie,
+        )
+        db.session.add(view_record)
+        db.session.commit()
 
     # Get pagination parameters
     page = request.args.get("page", 1, type=int)
@@ -412,16 +446,21 @@ def view_materials_dataset(dataset_id):
     # Get recommended datasets
     recommended_datasets = materials_dataset_service.get_recommendations(dataset_id, limit=5)
 
-    return render_template(
-        "dataset/view_materials_dataset.html",
-        dataset=dataset,
-        records=records,
-        page=page,
-        per_page=per_page,
-        total=total,
-        total_pages=total_pages,
-        recommended_datasets=recommended_datasets,
+    response = make_response(
+        render_template(
+            "dataset/view_materials_dataset.html",
+            dataset=dataset,
+            records=records,
+            page=page,
+            per_page=per_page,
+            total=total,
+            total_pages=total_pages,
+            recommended_datasets=recommended_datasets,
+        )
     )
+    response.set_cookie("view_cookie", view_cookie, max_age=60 * 60 * 24 * 365 * 2)  # 2 years
+
+    return response
 
 
 @dataset_bp.route("/materials/<int:dataset_id>/upload", methods=["GET", "POST"])
@@ -499,6 +538,14 @@ def materials_dataset_statistics(dataset_id):
     if not dataset:
         abort(404)
 
+    # If dataset has no CSV, redirect to upload page or show error
+    if not dataset.csv_file_path:
+        if current_user.is_authenticated and current_user.id == dataset.user_id:
+            flash("Please upload a CSV file to complete your dataset before viewing statistics.", "warning")
+            return redirect(url_for("dataset.upload_materials_csv", dataset_id=dataset.id))
+        else:
+            abort(404, description="This dataset is incomplete and has no statistics available")
+
     return render_template("dataset/materials_statistics.html", dataset=dataset)
 
 
@@ -554,7 +601,7 @@ def materials_dataset_recommendations(dataset_id):
 
 @dataset_bp.route("/materials/<int:dataset_id>/view_csv", methods=["GET"])
 def view_materials_csv(dataset_id):
-    """View CSV file content for a MaterialsDataset"""
+    """View CSV file content for a MaterialsDataset as structured data"""
     dataset = materials_dataset_repository.get_by_id(dataset_id)
 
     if not dataset:
@@ -564,10 +611,203 @@ def view_materials_csv(dataset_id):
         return jsonify({"error": "CSV file not found"}), 404
 
     try:
-        with open(dataset.csv_file_path, "r") as f:
-            content = f.read()
+        with open(dataset.csv_file_path, "r", encoding="utf-8") as f:
+            csv_reader = csv.DictReader(f)
+            headers = csv_reader.fieldnames
+            rows = [row for row in csv_reader]
 
-        return jsonify({"content": content})
+        return jsonify({"headers": headers, "rows": rows, "total": len(rows)})
     except Exception as e:
         logger.exception(f"Error reading CSV file: {e}")
         return jsonify({"error": f"Error reading file: {str(e)}"}), 500
+
+
+@dataset_bp.route("/materials/<int:dataset_id>/records/add", methods=["GET", "POST"])
+@login_required
+def add_material_record(dataset_id):
+    """Add a new MaterialRecord to a MaterialsDataset"""
+    from app import db
+    from app.modules.dataset.models import DataSource, MaterialRecord
+
+    dataset = materials_dataset_repository.get_by_id(dataset_id)
+    if not dataset:
+        abort(404, description="MaterialsDataset not found")
+
+    # Check if user owns this dataset
+    if dataset.user_id != current_user.id:
+        abort(403, description="You don't have permission to modify this dataset")
+
+    form = MaterialRecordForm()
+
+    if form.validate_on_submit():
+        try:
+            # Create new record
+            new_record = MaterialRecord(
+                materials_dataset_id=dataset_id,
+                material_name=form.material_name.data,
+                chemical_formula=form.chemical_formula.data,
+                structure_type=form.structure_type.data,
+                composition_method=form.composition_method.data,
+                property_name=form.property_name.data,
+                property_value=form.property_value.data,
+                property_unit=form.property_unit.data,
+                temperature=form.temperature.data,
+                pressure=form.pressure.data,
+                data_source=DataSource(form.data_source.data) if form.data_source.data else None,
+                uncertainty=form.uncertainty.data,
+                description=form.description.data,
+            )
+
+            db.session.add(new_record)
+            db.session.commit()
+
+            # Regenerate CSV file
+            regenerate_csv_for_dataset(dataset_id)
+
+            flash("Material record added successfully!", "success")
+            return redirect(url_for("dataset.view_materials_dataset", dataset_id=dataset_id))
+
+        except Exception as e:
+            db.session.rollback()
+            logger.exception(f"Error adding material record: {e}")
+            flash(f"Error adding record: {str(e)}", "error")
+
+    return render_template(
+        "dataset/material_record_form.html", form=form, dataset=dataset, action="Add", record=None
+    )
+
+
+@dataset_bp.route("/materials/<int:dataset_id>/records/<int:record_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_material_record(dataset_id, record_id):
+    """Edit an existing MaterialRecord"""
+    from app import db
+    from app.modules.dataset.models import DataSource, MaterialRecord
+
+    dataset = materials_dataset_repository.get_by_id(dataset_id)
+    if not dataset:
+        abort(404, description="MaterialsDataset not found")
+
+    # Check if user owns this dataset
+    if dataset.user_id != current_user.id:
+        abort(403, description="You don't have permission to modify this dataset")
+
+    record = db.session.query(MaterialRecord).filter_by(id=record_id, materials_dataset_id=dataset_id).first()
+    if not record:
+        abort(404, description="Material record not found")
+
+    form = MaterialRecordForm(obj=record)
+
+    if form.validate_on_submit():
+        try:
+            # Update record
+            record.material_name = form.material_name.data
+            record.chemical_formula = form.chemical_formula.data
+            record.structure_type = form.structure_type.data
+            record.composition_method = form.composition_method.data
+            record.property_name = form.property_name.data
+            record.property_value = form.property_value.data
+            record.property_unit = form.property_unit.data
+            record.temperature = form.temperature.data
+            record.pressure = form.pressure.data
+            record.data_source = DataSource(form.data_source.data) if form.data_source.data else None
+            record.uncertainty = form.uncertainty.data
+            record.description = form.description.data
+
+            db.session.commit()
+
+            # Regenerate CSV file
+            regenerate_csv_for_dataset(dataset_id)
+
+            flash("Material record updated successfully!", "success")
+            return redirect(url_for("dataset.view_materials_dataset", dataset_id=dataset_id))
+
+        except Exception as e:
+            db.session.rollback()
+            logger.exception(f"Error updating material record: {e}")
+            flash(f"Error updating record: {str(e)}", "error")
+
+    # Pre-populate form with existing data
+    if request.method == "GET" and record.data_source:
+        form.data_source.data = record.data_source.value
+
+    return render_template(
+        "dataset/material_record_form.html", form=form, dataset=dataset, action="Edit", record=record
+    )
+
+
+@dataset_bp.route("/materials/<int:dataset_id>/records/<int:record_id>/delete", methods=["POST"])
+@login_required
+def delete_material_record(dataset_id, record_id):
+    """Delete a MaterialRecord"""
+    from app import db
+    from app.modules.dataset.models import MaterialRecord
+
+    dataset = materials_dataset_repository.get_by_id(dataset_id)
+    if not dataset:
+        abort(404, description="MaterialsDataset not found")
+
+    # Check if user owns this dataset
+    if dataset.user_id != current_user.id:
+        abort(403, description="You don't have permission to modify this dataset")
+
+    record = db.session.query(MaterialRecord).filter_by(id=record_id, materials_dataset_id=dataset_id).first()
+    if not record:
+        abort(404, description="Material record not found")
+
+    try:
+        db.session.delete(record)
+        db.session.commit()
+
+        # Regenerate CSV file
+        regenerate_csv_for_dataset(dataset_id)
+
+        flash("Material record deleted successfully!", "success")
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error deleting material record: {e}")
+        flash(f"Error deleting record: {str(e)}", "error")
+
+    return redirect(url_for("dataset.view_materials_dataset", dataset_id=dataset_id))
+
+
+@dataset_bp.route("/materials/<int:dataset_id>/delete", methods=["POST"])
+@login_required
+def delete_materials_dataset(dataset_id):
+    """Delete a MaterialsDataset completely (records, CSV file, and dataset)"""
+    from app import db
+
+    dataset = materials_dataset_repository.get_by_id(dataset_id)
+
+    if not dataset:
+        abort(404, description="MaterialsDataset not found")
+
+    if dataset.user_id != current_user.id:
+        abort(403, description="You don't have permission to delete this dataset")
+
+    try:
+        # Delete CSV file from filesystem if it exists
+        if dataset.csv_file_path:
+            csv_path = dataset.csv_file_path
+            if not os.path.isabs(csv_path):
+                csv_path = os.path.abspath(csv_path)
+
+            if os.path.exists(csv_path):
+                os.remove(csv_path)
+                logger.info(f"Deleted CSV file: {csv_path}")
+
+        # Delete dataset (cascade will delete material_records, download_records, view_records)
+        dataset_title = dataset.ds_meta_data.title
+        db.session.delete(dataset)
+        db.session.commit()
+
+        flash(f'Dataset "{dataset_title}" has been deleted successfully!', "success")
+        logger.info(f"Deleted MaterialsDataset {dataset_id}")
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception(f"Error deleting MaterialsDataset: {e}")
+        flash(f"Error deleting dataset: {str(e)}", "error")
+        return redirect(url_for("dataset.materials_dataset_statistics", dataset_id=dataset_id))
+
+    return redirect(url_for("dataset.list_dataset"))

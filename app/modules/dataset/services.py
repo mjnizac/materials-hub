@@ -418,9 +418,51 @@ class MaterialsDatasetService:
 
     def __init__(self):
         from app.modules.dataset.repositories import MaterialRecordRepository, MaterialsDatasetRepository
+        from app.modules.dataset.repositories import AuthorRepository, DSMetaDataRepository
 
         self.materials_dataset_repository = MaterialsDatasetRepository()
         self.material_record_repository = MaterialRecordRepository()
+        self.author_repository = AuthorRepository()
+        self.dsmetadata_repository = DSMetaDataRepository()
+
+    def create_from_form(self, form, current_user):
+        """Create a MaterialsDataset from a form submission"""
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        main_author = {
+            "name": f"{current_user.profile.surname}, {current_user.profile.name}",
+            "affiliation": current_user.profile.affiliation,
+            "orcid": current_user.profile.orcid,
+        }
+
+        try:
+            logger.info(f"Creating MaterialsDataset metadata...: {form.get_dsmetadata()}")
+            dsmetadata = self.dsmetadata_repository.create(**form.get_dsmetadata())
+
+            for author_data in [main_author] + form.get_authors():
+                author = self.author_repository.create(commit=False, ds_meta_data_id=dsmetadata.id, **author_data)
+                dsmetadata.authors.append(author)
+
+            # Create MaterialsDataset (without CSV initially)
+            from app import db
+
+            dataset = self.materials_dataset_repository.create(
+                commit=False, user_id=current_user.id, ds_meta_data_id=dsmetadata.id, csv_file_path=None
+            )
+
+            db.session.commit()
+
+            logger.info(f"Created MaterialsDataset: {dataset}")
+            return dataset
+
+        except Exception as e:
+            from app import db
+
+            db.session.rollback()
+            logger.exception(f"Error creating MaterialsDataset: {e}")
+            raise
 
     def validate_csv_columns(self, csv_columns: list) -> dict:
         """
@@ -841,3 +883,12 @@ class MaterialsDatasetService:
             for ds in datasets
             if any(prop.strip().lower() in current_properties for prop in ds.get_unique_properties())
         ]
+
+    def get_top_global(self, metric: str = "downloads", limit: int = 10, days: int = 30):
+        """
+        Devuelve el top global de MaterialsDataset según métrica ('downloads'|'views'), límite y rango de días (7|30).
+        """
+        metric = (metric or "downloads").lower()
+        if metric == "views":
+            return self.materials_dataset_repository.get_top_views_global(limit=limit, days=days)
+        return self.materials_dataset_repository.get_top_downloads_global(limit=limit, days=days)

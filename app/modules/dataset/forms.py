@@ -1,8 +1,8 @@
 from flask_wtf import FlaskForm
-from wtforms import FieldList, FormField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import URL, DataRequired, Optional
+from wtforms import FieldList, FormField, IntegerField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms.validators import URL, DataRequired, NumberRange, Optional
 
-from app.modules.dataset.models import PublicationType
+from app.modules.dataset.models import DataSource, PublicationType
 
 
 class AuthorForm(FlaskForm):
@@ -66,7 +66,6 @@ class DataSetForm(FlaskForm):
     dataset_doi = StringField("Dataset DOI", validators=[Optional(), URL()])
     tags = StringField("Tags (separated by commas)")
     authors = FieldList(FormField(AuthorForm))
-    feature_models = FieldList(FormField(FeatureModelForm), min_entries=1)
 
     submit = SubmitField("Submit")
 
@@ -94,3 +93,24 @@ class DataSetForm(FlaskForm):
 
     def get_feature_models(self):
         return [fm.get_feature_model() for fm in self.feature_models]
+
+
+class MaterialRecordForm(FlaskForm):
+    material_name = StringField("Material Name", validators=[DataRequired()])
+    chemical_formula = StringField("Chemical Formula", validators=[Optional()])
+    structure_type = StringField("Structure Type", validators=[Optional()])
+    composition_method = StringField("Composition Method", validators=[Optional()])
+    property_name = StringField("Property Name", validators=[DataRequired()])
+    property_value = StringField("Property Value", validators=[DataRequired()])
+    property_unit = StringField("Property Unit", validators=[Optional()])
+    temperature = IntegerField("Temperature (K)", validators=[Optional(), NumberRange(min=0)])
+    pressure = IntegerField("Pressure (Pa)", validators=[Optional(), NumberRange(min=0)])
+    data_source = SelectField(
+        "Data Source",
+        choices=[(ds.value, ds.name.replace("_", " ").title()) for ds in DataSource],
+        validators=[Optional()],
+    )
+    uncertainty = IntegerField("Uncertainty", validators=[Optional(), NumberRange(min=0)])
+    description = TextAreaField("Description", validators=[Optional()])
+
+    submit = SubmitField("Save Record")

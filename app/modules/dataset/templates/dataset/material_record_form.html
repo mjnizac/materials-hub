@@ -1,0 +1,137 @@
+{% extends "base_template.html" %}
+
+{% block title %}{{ action }} Material Record{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid p-0">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">{{ action }} Material Record</h3>
+                    <p class="text-muted mt-2">
+                        Dataset: <strong>{{ dataset.ds_meta_data.title }}</strong>
+                    </p>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="">
+                        {{ form.hidden_tag() }}
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="material_name" class="form-label">Material Name *</label>
+                                {{ form.material_name(class="form-control", placeholder="e.g., Silicon Dioxide") }}
+                                {% if form.material_name.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.material_name.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="chemical_formula" class="form-label">Chemical Formula</label>
+                                {{ form.chemical_formula(class="form-control", placeholder="e.g., SiO2") }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="structure_type" class="form-label">Structure Type</label>
+                                {{ form.structure_type(class="form-control", placeholder="e.g., Crystalline") }}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="composition_method" class="form-label">Composition Method</label>
+                                {{ form.composition_method(class="form-control", placeholder="e.g., Sol-gel") }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="property_name" class="form-label">Property Name *</label>
+                                {{ form.property_name(class="form-control", placeholder="e.g., Hardness") }}
+                                {% if form.property_name.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.property_name.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label for="property_value" class="form-label">Property Value *</label>
+                                {{ form.property_value(class="form-control", placeholder="e.g., 7.5") }}
+                                {% if form.property_value.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.property_value.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label for="property_unit" class="form-label">Property Unit</label>
+                                {{ form.property_unit(class="form-control", placeholder="e.g., GPa") }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="temperature" class="form-label">Temperature (K)</label>
+                                {{ form.temperature(class="form-control", placeholder="e.g., 300") }}
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label for="pressure" class="form-label">Pressure (Pa)</label>
+                                {{ form.pressure(class="form-control", placeholder="e.g., 101325") }}
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label for="data_source" class="form-label">Data Source</label>
+                                {{ form.data_source(class="form-control") }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="uncertainty" class="form-label">Uncertainty</label>
+                                {{ form.uncertainty(class="form-control", placeholder="e.g., 5") }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="description" class="form-label">Description</label>
+                                {{ form.description(class="form-control", rows=4, placeholder="Additional information about this record...") }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i data-feather="save"></i> Save Record
+                                </button>
+                                <a href="{{ url_for('dataset.view_materials_dataset', dataset_id=dataset.id) }}" class="btn btn-secondary">
+                                    <i data-feather="x"></i> Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        feather.replace();
+    });
+</script>
+
+{% endblock %}
