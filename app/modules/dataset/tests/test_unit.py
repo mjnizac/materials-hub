@@ -1,6 +1,7 @@
 """
 Unit tests for dataset module - repositories, models, and services.
 """
+
 import tempfile
 import unittest.mock
 from datetime import datetime, timezone
@@ -12,11 +13,11 @@ from app.modules.auth.models import User
 from app.modules.auth.repositories import UserRepository
 from app.modules.dataset.models import (
     Author,
+    DataSource,
     DOIMapping,
     DSDownloadRecord,
     DSMetaData,
     DSViewRecord,
-    DataSource,
     MaterialRecord,
     MaterialsDataset,
     PublicationType,
@@ -39,7 +40,6 @@ from app.modules.dataset.services import (
     calculate_checksum_and_size,
 )
 from core.services.BaseService import BaseService
-
 
 # ============================================================================
 # Tests for Dataset Repositories

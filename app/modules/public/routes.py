@@ -21,7 +21,7 @@ def index():
 
     # Statistics: materials datasets
     datasets_counter = materials_dataset_repository.count_synchronized()
-    latest_datasets = materials_dataset_repository.get_synchronized_latest(limit=5)
+    latest_materials_datasets = materials_dataset_repository.get_synchronized_latest(limit=5)
 
     # Statistics: total downloads and views
     total_dataset_downloads = download_repository.count()
@@ -29,8 +29,12 @@ def index():
 
     return render_template(
         "public/index.html",
-        datasets=latest_datasets,
+        latest_materials_datasets=latest_materials_datasets,
         datasets_counter=datasets_counter,
+        materials_datasets_counter=datasets_counter,
+        feature_models_counter=0,
         total_dataset_downloads=total_dataset_downloads,
         total_dataset_views=total_dataset_views,
+        total_feature_model_views=0,
+        total_feature_model_downloads=0,
     )
