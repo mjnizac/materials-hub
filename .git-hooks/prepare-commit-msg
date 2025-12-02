@@ -20,27 +20,6 @@ if [ -z "$COMMIT_SOURCE" ] || [ "$COMMIT_SOURCE" = "message" ]; then
         docs:*)
             NEW_MSG="📝 $COMMIT_MSG"
             ;;
-        chore:*)
-            NEW_MSG="🔧 $COMMIT_MSG"
-            ;;
-        test:*)
-            NEW_MSG="✅ $COMMIT_MSG"
-            ;;
-        refactor:*)
-            NEW_MSG="♻️ $COMMIT_MSG"
-            ;;
-        style:*)
-            NEW_MSG="💄 $COMMIT_MSG"
-            ;;
-        perf:*)
-            NEW_MSG="⚡ $COMMIT_MSG"
-            ;;
-        ci:*)
-            NEW_MSG="👷 $COMMIT_MSG"
-            ;;
-        build:*)
-            NEW_MSG="📦 $COMMIT_MSG"
-            ;;
         *)
             # Si no coincide con ningún tipo, dejar el mensaje sin cambios
             NEW_MSG="$COMMIT_MSG"
