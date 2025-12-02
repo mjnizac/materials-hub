@@ -64,6 +64,7 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+          cache: 'pip'
 
       # Step 3: Remove local editable mode for rosemary dependency
       - name: Delete rosemary editable mode
@@ -74,6 +75,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install .
 
       # Step 5: Initialize database
       - name: Setup database
