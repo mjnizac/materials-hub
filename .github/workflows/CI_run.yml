@@ -71,7 +71,6 @@ jobs:
       # Step 5: Initialize database
       - name: Setup database
         run: |
-          rosemary db:migrate "Initial migration for CI"
           rosemary db:upgrade
           rosemary db:seed
 
