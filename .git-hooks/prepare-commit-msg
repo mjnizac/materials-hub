@@ -1,0 +1,52 @@
+#!/bin/bash
+# Git hook para añadir emojis automáticamente a los commits según el tipo
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+
+# Solo procesar commits normales (no merge, amend, etc)
+if [ -z "$COMMIT_SOURCE" ] || [ "$COMMIT_SOURCE" = "message" ]; then
+    # Leer el mensaje del commit
+    COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+    # Mapeo de tipos de commit a emojis
+    case "$COMMIT_MSG" in
+        fix:*)
+            NEW_MSG="🐛 $COMMIT_MSG"
+            ;;
+        feat:*)
+            NEW_MSG="✨ $COMMIT_MSG"
+            ;;
+        docs:*)
+            NEW_MSG="📝 $COMMIT_MSG"
+            ;;
+        chore:*)
+            NEW_MSG="🔧 $COMMIT_MSG"
+            ;;
+        test:*)
+            NEW_MSG="✅ $COMMIT_MSG"
+            ;;
+        refactor:*)
+            NEW_MSG="♻️ $COMMIT_MSG"
+            ;;
+        style:*)
+            NEW_MSG="💄 $COMMIT_MSG"
+            ;;
+        perf:*)
+            NEW_MSG="⚡ $COMMIT_MSG"
+            ;;
+        ci:*)
+            NEW_MSG="👷 $COMMIT_MSG"
+            ;;
+        build:*)
+            NEW_MSG="📦 $COMMIT_MSG"
+            ;;
+        *)
+            # Si no coincide con ningún tipo, dejar el mensaje sin cambios
+            NEW_MSG="$COMMIT_MSG"
+            ;;
+    esac
+
+    # Escribir el nuevo mensaje
+    echo "$NEW_MSG" > "$COMMIT_MSG_FILE"
+fi
