@@ -26,7 +26,6 @@ jobs:
       FLASK_APP_NAME: MaterialsHub
       DOMAIN: localhost
       SECRET_KEY: test-secret-key-for-ci
-      WORKING_DIR: /tmp
 
     services:
       # MariaDB service container
