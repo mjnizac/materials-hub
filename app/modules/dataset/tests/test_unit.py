@@ -1,6 +1,7 @@
 """
 Unit tests for dataset module - repositories, models, and services.
 """
+
 import tempfile
 import unittest.mock
 from datetime import datetime, timezone
@@ -12,11 +13,11 @@ from app.modules.auth.models import User
 from app.modules.auth.repositories import UserRepository
 from app.modules.dataset.models import (
     Author,
+    DataSource,
     DOIMapping,
     DSDownloadRecord,
     DSMetaData,
     DSViewRecord,
-    DataSource,
     MaterialRecord,
     MaterialsDataset,
     PublicationType,
@@ -38,12 +39,7 @@ from app.modules.dataset.services import (
     SizeService,
     calculate_checksum_and_size,
 )
-from app.modules.profile.forms import UserProfileForm
-from app.modules.profile.models import UserProfile
-from app.modules.profile.services import UserProfileService
 from core.services.BaseService import BaseService
-from werkzeug.datastructures import ImmutableMultiDict
-
 
 # ============================================================================
 # Tests for Dataset Repositories
@@ -112,7 +108,9 @@ def test_materials_dataset_repository_count_synchronized(test_client):
     db.session.commit()
 
     # Create unsynchronized dataset (without DOI)
-    metadata2 = DSMetaData(title="Dataset 2", description="Test", dataset_doi=None, publication_type=PublicationType.NONE)
+    metadata2 = DSMetaData(
+        title="Dataset 2", description="Test", dataset_doi=None, publication_type=PublicationType.NONE
+    )
     db.session.add(metadata2)
     db.session.commit()
 
@@ -145,7 +143,10 @@ def test_materials_dataset_repository_get_synchronized_latest(test_client):
     # Create 3 synchronized datasets
     for i in range(3):
         metadata = DSMetaData(
-            title=f"Dataset {i}", description="Test", dataset_doi=f"10.1234/test{i}", publication_type=PublicationType.NONE
+            title=f"Dataset {i}",
+            description="Test",
+            dataset_doi=f"10.1234/test{i}",
+            publication_type=PublicationType.NONE,
         )
         db.session.add(metadata)
         db.session.commit()
@@ -353,7 +354,10 @@ def test_ds_download_record_repository_total_downloads(test_client):
     # Create 5 download records
     for i in range(5):
         download = DSDownloadRecord(
-            user_id=user.id, dataset_id=dataset.id, download_date=datetime.now(timezone.utc), download_cookie=f"cookie{i}"
+            user_id=user.id,
+            dataset_id=dataset.id,
+            download_date=datetime.now(timezone.utc),
+            download_cookie=f"cookie{i}",
         )
         db.session.add(download)
     db.session.commit()

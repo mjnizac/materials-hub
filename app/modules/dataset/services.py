@@ -2,13 +2,11 @@ import csv
 import hashlib
 import logging
 import os
-import shutil
 import uuid
 from typing import Optional
 
 from flask import request
 
-from app.modules.auth.services import AuthenticationService
 from app.modules.dataset.models import DSMetaData, DSViewRecord, MaterialsDataset
 from app.modules.dataset.repositories import (
     AuthorRepository,
@@ -17,6 +15,7 @@ from app.modules.dataset.repositories import (
     DSMetaDataRepository,
     DSViewRecordRepository,
 )
+
 # UVL removed: from app.modules.featuremodel.repositories
 from core.services.BaseService import BaseService
 
@@ -416,8 +415,12 @@ class MaterialsDatasetService:
     ]
 
     def __init__(self):
-        from app.modules.dataset.repositories import MaterialRecordRepository, MaterialsDatasetRepository
-        from app.modules.dataset.repositories import AuthorRepository, DSMetaDataRepository
+        from app.modules.dataset.repositories import (
+            AuthorRepository,
+            DSMetaDataRepository,
+            MaterialRecordRepository,
+            MaterialsDatasetRepository,
+        )
 
         self.materials_dataset_repository = MaterialsDatasetRepository()
         self.material_record_repository = MaterialRecordRepository()

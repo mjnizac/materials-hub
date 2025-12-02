@@ -3,7 +3,7 @@ import re
 import unidecode
 from sqlalchemy import or_
 
-from app.modules.dataset.models import Author, MaterialRecord, MaterialsDataset, DSMetaData, PublicationType
+from app.modules.dataset.models import Author, DSMetaData, MaterialRecord, MaterialsDataset, PublicationType
 from core.repositories.BaseRepository import BaseRepository
 
 

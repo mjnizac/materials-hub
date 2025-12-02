@@ -99,6 +99,7 @@ class BaseDataset(db.Model):
 
     def get_uvlhub_doi(self):
         import os
+
         domain = os.getenv("DOMAIN", "localhost")
         return f"http://{domain}/doi/{self.ds_meta_data.dataset_doi}"
 
@@ -200,15 +201,11 @@ class MaterialsDataset(BaseDataset):
     ds_meta_data = db.relationship(
         "DSMetaData", backref=db.backref("materials_dataset", uselist=False), cascade="all, delete"
     )
-    material_records = db.relationship(
-        "MaterialRecord", backref="materials_dataset", lazy=True, cascade="all, delete"
-    )
+    material_records = db.relationship("MaterialRecord", backref="materials_dataset", lazy=True, cascade="all, delete")
     download_records = db.relationship(
         "DSDownloadRecord", backref="materials_dataset", lazy=True, cascade="all, delete"
     )
-    view_records = db.relationship(
-        "DSViewRecord", backref="materials_dataset", lazy=True, cascade="all, delete"
-    )
+    view_records = db.relationship("DSViewRecord", backref="materials_dataset", lazy=True, cascade="all, delete")
 
     def files(self):
         """Get CSV files for materials dataset"""
@@ -278,7 +275,7 @@ class MaterialsDataset(BaseDataset):
                 "total_size_in_bytes": self.get_file_total_size(),
                 "total_size_in_human_format": self.get_file_total_size_for_human(),
                 "dataset_type": "materials",
-                "url": url_for('dataset.view_materials_dataset', dataset_id=self.id, _external=True),
+                "url": url_for("dataset.view_materials_dataset", dataset_id=self.id, _external=True),
             }
         )
         return base_dict

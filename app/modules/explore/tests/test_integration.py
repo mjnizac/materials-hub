@@ -1,11 +1,10 @@
 """
 Integration tests for explore module.
 """
+
 import pytest
 
-from app import db
-from app.modules.auth.models import User
-from app.modules.dataset.models import MaterialsDataset, PublicationType
+from app.modules.dataset.models import PublicationType
 from app.modules.explore.services import ExploreService
 
 

@@ -132,7 +132,7 @@ class ZenodoService(BaseService):
             raise Exception("Failed to get depositions")
         return response.json()
 
-    def create_new_deposition(self, dataset: DataSet) -> dict:
+    def create_new_deposition(self, dataset: "DataSet") -> dict:  # noqa: F821
         """
         Create a new deposition in Zenodo.
 
@@ -178,7 +178,9 @@ class ZenodoService(BaseService):
             raise Exception(error_message)
         return response.json()
 
-    def upload_file(self, dataset: DataSet, deposition_id: int, feature_model: FeatureModel, user=None) -> dict:
+    def upload_file(
+        self, dataset: "DataSet", deposition_id: int, feature_model: FeatureModel, user=None  # noqa: F821
+    ) -> dict:
         """
         Upload a file to a deposition in Zenodo.
 

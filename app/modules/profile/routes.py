@@ -41,7 +41,9 @@ def my_profile():
         .paginate(page=page, per_page=per_page, error_out=False)
     )
 
-    total_datasets_count = db.session.query(MaterialsDataset).filter(MaterialsDataset.user_id == current_user.id).count()
+    total_datasets_count = (
+        db.session.query(MaterialsDataset).filter(MaterialsDataset.user_id == current_user.id).count()
+    )
 
     print(user_datasets_pagination.items)
 

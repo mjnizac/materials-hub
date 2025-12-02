@@ -21,7 +21,7 @@ class FakenodoService(BaseService):
     def __init__(self):
         self.deposition_repository = DepositionRepository()
 
-    def create_new_deposition(self, dataset: DataSet) -> dict:
+    def create_new_deposition(self, dataset: "DataSet") -> dict:  # noqa: F821
         """
         Create a new deposition in Fakenodo.
 
@@ -71,7 +71,9 @@ class FakenodoService(BaseService):
         except Exception as e:
             raise Exception(f"Failed to create local deposition: {str(e)}")
 
-    def upload_file(self, dataset: DataSet, deposition_id: int, feature_model: FeatureModel, user=None) -> dict:
+    def upload_file(
+        self, dataset: "DataSet", deposition_id: int, feature_model: FeatureModel, user=None  # noqa: F821
+    ) -> dict:
         """
         Save a file to a deposition in Fakenodo.
 

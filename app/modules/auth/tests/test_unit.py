@@ -1,6 +1,7 @@
 """
 Unit tests for auth module.
 """
+
 import pytest
 from flask import url_for
 

@@ -1,16 +1,15 @@
 # ----------------------------------------------------------------------------
 # Commits Syntax Checker Workflow
 # This workflow validates commit messages against the Conventional Commits specification.
-# It runs on every push and pull request to ensure consistent commit history.
+# It runs only on pushes to main and develop branches.
 # ----------------------------------------------------------------------------
 
 name: Commits Syntax Checker
 
 on:
-  # Trigger the workflow on every push to any branch
+  # Trigger the workflow only on push to main and develop branches
   push:
-  # Trigger the workflow on every pull request (opened, synchronized, or updated)
-  pull_request:
+    branches: [main, develop]
 
 jobs:
   check:

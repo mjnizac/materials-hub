@@ -30,15 +30,15 @@ from app.modules.dataset.services import (
     DSViewRecordService,
     MaterialsDatasetService,
 )
-# UVL removed: from app.modules.fakenodo.services import FakenodoService
-# UVL removed: from app.modules.zenodo.services import ZenodoService
+from app.modules.fakenodo.services import FakenodoService
+from app.modules.zenodo.services import ZenodoService
 from core.configuration.configuration import USE_FAKENODO
 
 logger = logging.getLogger(__name__)
 author_service = AuthorService()
 dsmetadata_service = DSMetaDataService()
-# UVL removed: fakenodo_service = FakenodoService()
-# UVL removed: zenodo_service = ZenodoService()
+fakenodo_service = FakenodoService()
+zenodo_service = ZenodoService()
 doi_mapping_service = DOIMappingService()
 ds_view_record_service = DSViewRecordService()
 
@@ -210,10 +210,15 @@ def create_dataset():
             shutil.rmtree(file_path)
 
         # Always redirect to CSV upload for MaterialsDataset
-        return jsonify({
-            "message": "Materials dataset created successfully!",
-            "redirect_url": url_for('dataset.upload_materials_csv', dataset_id=dataset.id)
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "Materials dataset created successfully!",
+                    "redirect_url": url_for("dataset.upload_materials_csv", dataset_id=dataset.id),
+                }
+            ),
+            200,
+        )
 
     return render_template("dataset/upload_dataset.html", form=form, use_fakenodo=USE_FAKENODO)
 
@@ -355,7 +360,7 @@ def subdomain_index(doi):
     if not dataset:
         abort(404)
 
-    return redirect(url_for('dataset.view_materials_dataset', dataset_id=dataset.id))
+    return redirect(url_for("dataset.view_materials_dataset", dataset_id=dataset.id))
 
 
 @dataset_bp.route("/datasets/top", methods=["GET"])
@@ -413,11 +418,7 @@ def view_materials_dataset(dataset_id):
     # Check if this view already exists to avoid duplicates
     from app import db
 
-    existing_view = (
-        db.session.query(DSViewRecord)
-        .filter_by(dataset_id=dataset_id, view_cookie=view_cookie)
-        .first()
-    )
+    existing_view = db.session.query(DSViewRecord).filter_by(dataset_id=dataset_id, view_cookie=view_cookie).first()
 
     if not existing_view:
         view_record = DSViewRecord(
@@ -672,9 +673,7 @@ def add_material_record(dataset_id):
             logger.exception(f"Error adding material record: {e}")
             flash(f"Error adding record: {str(e)}", "error")
 
-    return render_template(
-        "dataset/material_record_form.html", form=form, dataset=dataset, action="Add", record=None
-    )
+    return render_template("dataset/material_record_form.html", form=form, dataset=dataset, action="Add", record=None)
 
 
 @dataset_bp.route("/materials/<int:dataset_id>/records/<int:record_id>/edit", methods=["GET", "POST"])

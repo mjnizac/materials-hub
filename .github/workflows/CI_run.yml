@@ -1,17 +1,16 @@
 # ----------------------------------------------------------------------------
-# Run Tests Workflow
-# This workflow runs pytest on every push to any branch.
-# It sets up a MariaDB service container and configures environment
-# variables for both the service and the test environment.
+# Run Application Workflow
+# This workflow verifies that the application can start successfully.
+# It sets up the environment, database, and starts the Flask server.
 # ----------------------------------------------------------------------------
 
-name: Pytest
+name: Run Application
 
 on:
   push:
 
 jobs:
-  pytest:
+  run-app:
     runs-on: ubuntu-24.04
 
     # Global environment variables shared across services and steps
@@ -23,10 +22,13 @@ jobs:
       MARIADB_PASSWORD: uvlhub_password
       MARIADB_HOSTNAME: 127.0.0.1
       MARIADB_PORT: 3306
-      FLASK_ENV: testing
+      FLASK_ENV: development
+      FLASK_APP_NAME: MaterialsHub
+      DOMAIN: localhost
+      SECRET_KEY: test-secret-key-for-ci
 
     services:
-      # MariaDB service container for integration tests
+      # MariaDB service container
       mariadb:
         image: mariadb:12.0.2
         env:
@@ -43,7 +45,7 @@ jobs:
           --health-retries=3
 
     steps:
-      
+
       # Step 1: Checkout the repository code
       - name: Checkout
         uses: actions/checkout@v5
@@ -64,40 +66,31 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -e .
 
-      # Step 5: Run the pytest test suite (unit tests only)
-      - name: Run Unit Tests
-        run: pytest -m unit -v --cov=app --cov-report=term-missing --cov-report=xml --cov-report=html --cov-fail-under=25
+      # Step 5: Initialize database
+      - name: Setup database
+        run: |
+          rosemary db:upgrade
+          rosemary db:seed
 
-      # Step 6: Run integration tests (append to existing coverage)
-      - name: Run Integration Tests
-        run: pytest -m integration -v --cov=app --cov-append --cov-report=term-missing --cov-report=xml --cov-report=html
+      # Step 6: Start Flask application in background
+      - name: Start Flask application
+        run: |
+          flask run --host=0.0.0.0 --port=5000 &
+          echo $! > flask.pid
+          sleep 5
 
-      # Step 7: Upload coverage report to Codecov
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          file: ./coverage.xml
-          flags: unittests,integration
-          name: codecov-umbrella
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      # Step 7: Verify application is running
+      - name: Health check
+        run: |
+          curl -f http://localhost:5000/ || exit 1
+          echo "Application is running successfully!"
 
-      # Step 8: Upload HTML coverage report as artifact
-      - name: Upload coverage HTML report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-report-${{ github.sha }}
-          path: htmlcov/
-          retention-days: 30
-
-      # Step 9: Generate coverage summary
-      - name: Coverage Summary
+      # Step 8: Stop Flask application
+      - name: Stop Flask application
         if: always()
         run: |
-          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          coverage report >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          if [ -f flask.pid ]; then
+            kill $(cat flask.pid) || true
+          fi

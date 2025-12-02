@@ -1,0 +1,127 @@
+# ----------------------------------------------------------------------------
+# Sync Main to Develop Workflow
+# This workflow automatically syncs changes from main back to develop.
+# Useful for hotfixes that go directly to main and need to be in develop too.
+# ----------------------------------------------------------------------------
+
+name: Sync Main to Develop
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    # Skip if this push came from the automerge workflow to avoid loops
+    if: ${{ !contains(github.event.head_commit.message, 'auto-merge develop to main') }}
+
+    steps:
+
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: main
+
+      # Step 2: Configure Git
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Step 3: Check if develop exists
+      - name: Check if develop branch exists
+        id: check-develop
+        run: |
+          if git ls-remote --heads origin develop | grep -q develop; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Develop branch does not exist, skipping sync"
+          fi
+
+      # Step 4: Merge main into develop
+      - name: Merge main to develop
+        if: steps.check-develop.outputs.exists == 'true'
+        run: |
+          git fetch origin develop
+          git checkout -b develop origin/develop
+
+          # Try to merge main into develop
+          if git merge origin/main --no-ff -m "chore: sync main to develop after hotfix/direct merge
+
+          🔄 Auto-sync from main to develop
+
+          Commit: ${{ github.sha }}"; then
+            echo "✅ Merge successful"
+          else
+            echo "⚠️ Merge conflict detected"
+            git merge --abort
+            echo "conflict=true" >> $GITHUB_ENV
+          fi
+
+      # Step 5: Push changes to develop
+      - name: Push to develop
+        if: steps.check-develop.outputs.exists == 'true' && env.conflict != 'true'
+        run: |
+          git push origin develop
+          echo "✅ Successfully synced main → develop"
+
+      # Step 6: Create issue if there's a conflict
+      - name: Create issue on conflict
+        if: env.conflict == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚠️ Merge conflict: main → develop sync failed',
+              body: `## Merge Conflict Detected
+
+              The automatic sync from \`main\` to \`develop\` failed due to merge conflicts.
+
+              **Commit:** ${{ github.sha }}
+              **Message:** ${{ github.event.head_commit.message }}
+
+              ### Manual Resolution Required
+
+              Please manually merge \`main\` into \`develop\`:
+
+              \`\`\`bash
+              git checkout develop
+              git pull origin develop
+              git merge main
+              # Resolve conflicts
+              git commit
+              git push origin develop
+              \`\`\`
+
+              **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              `,
+              labels: ['merge-conflict', 'automated']
+            });
+
+            console.log(`Issue created: ${issue.data.html_url}`);
+
+      # Step 7: Summary
+      - name: Sync Summary
+        if: always()
+        run: |
+          echo "## Main → Develop Sync" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ env.conflict }}" = "true" ]; then
+            echo "❌ **Sync Failed** - Merge conflict detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "An issue has been created for manual resolution." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.check-develop.outputs.exists }}" = "false" ]; then
+            echo "⚠️ **Skipped** - Develop branch does not exist" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **Sync Successful**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Main has been successfully merged into develop." >> $GITHUB_STEP_SUMMARY
+          fi

@@ -130,9 +130,6 @@ class MaterialsDatasetRepository(BaseRepository):
         Top global por descargas en los últimos 'days' días para MaterialsDataset.
         Incluye datasets con 0 descargas en el rango (outer join).
         """
-        from datetime import datetime, timedelta, timezone
-        from sqlalchemy import and_, func
-
         from app.modules.dataset.models import DSDownloadRecord, DSMetaData, MaterialsDataset
 
         since = datetime.now(timezone.utc) - timedelta(days=days)
@@ -164,9 +161,6 @@ class MaterialsDatasetRepository(BaseRepository):
         Top global por vistas en los últimos 'days' días para MaterialsDataset.
         Incluye datasets con 0 vistas en el rango (outer join).
         """
-        from datetime import datetime, timedelta, timezone
-        from sqlalchemy import and_, func
-
         from app.modules.dataset.models import DSMetaData, DSViewRecord, MaterialsDataset
 
         since = datetime.now(timezone.utc) - timedelta(days=days)

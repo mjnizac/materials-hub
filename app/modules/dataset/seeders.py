@@ -1,11 +1,8 @@
 import csv
 import os
 import random
-import shutil
 import uuid
 from datetime import datetime, timedelta, timezone
-
-from dotenv import load_dotenv
 
 from app.modules.auth.models import User
 from app.modules.dataset.models import (
@@ -1382,5 +1379,6 @@ class DataSetSeeder(BaseSeeder):
         self.seed(all_view_records)
 
         print(
-            f"Generated {len(all_download_records)} download records and {len(all_view_records)} view records for MaterialsDatasets"
+            f"Generated {len(all_download_records)} download records and "
+            f"{len(all_view_records)} view records for MaterialsDatasets"
         )

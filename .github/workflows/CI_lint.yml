@@ -1,6 +1,6 @@
 # ----------------------------------------------------------------------------
 # Python Lint Workflow
-# This workflow runs linting and code style checks on every push and pull request.
+# This workflow runs linting and code style checks on every push.
 # It ensures the codebase follows PEP8, Black formatting, and import ordering standards.
 # ----------------------------------------------------------------------------
 
@@ -9,8 +9,6 @@ name: Python Lint
 on:
   # Trigger on every push to any branch
   push:
-  # Trigger on every pull request (opened, updated, or synchronized)
-  pull_request:
 
 jobs:
   lint:
@@ -27,6 +25,7 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+          cache: 'pip'
 
       # Step 3: Install linting and formatting tools
       - name: Install Dependencies

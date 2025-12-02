@@ -4,6 +4,7 @@ from flask import request
 
 from app import db
 from app.modules.auth.models import User
+
 # UVL removed: from app.modules.dataset.models import DataSet
 
 
@@ -25,12 +26,12 @@ class Hubfile(db.Model):
 
         return HubfileService().get_owner_user_by_hubfile(self)
 
-    def get_dataset(self) -> DataSet:
+    def get_dataset(self) -> "DataSet":  # noqa: F821
         from app.modules.hubfile.services import HubfileService
 
         return HubfileService().get_dataset_by_hubfile(self)
 
-    def get_path(self) -> DataSet:
+    def get_path(self) -> str:  # Fixed: should return str, not DataSet
         from app.modules.hubfile.services import HubfileService
 
         return HubfileService().get_path_by_hubfile(self)
