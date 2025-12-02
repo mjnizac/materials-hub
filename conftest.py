@@ -5,8 +5,16 @@ import pytest
 
 from app import create_app, db
 from app.modules.auth.models import User
-from app.modules.dataset.models import Author, DataSet, DSDownloadRecord, DSMetaData, DSViewRecord, PublicationType
-from app.modules.featuremodel.models import FeatureModel, FMMetaData
+from app.modules.dataset.models import (
+    Author,
+    DataSource,
+    DSDownloadRecord,
+    DSMetaData,
+    DSViewRecord,
+    MaterialRecord,
+    MaterialsDataset,
+    PublicationType,
+)
 from app.modules.profile.models import UserProfile
 
 # Configure webdriver-manager to use only local cached drivers
@@ -62,14 +70,29 @@ def test_client(test_app):
 
 
 @pytest.fixture(scope="function")
-def clean_database():
-    db.session.remove()
-    db.drop_all()
-    db.create_all()
-    yield
-    db.session.remove()
-    db.drop_all()
-    db.create_all()
+def clean_database(test_app):
+    with test_app.app_context():
+        # Rollback any pending transactions
+        db.session.rollback()
+        db.session.remove()
+        # Disable foreign key checks for MySQL
+        db.session.execute(db.text("SET FOREIGN_KEY_CHECKS=0;"))
+        db.session.commit()
+        db.drop_all()
+        db.session.execute(db.text("SET FOREIGN_KEY_CHECKS=1;"))
+        db.session.commit()
+        db.create_all()
+        yield
+        # Rollback any pending transactions
+        db.session.rollback()
+        db.session.remove()
+        # Disable foreign key checks for MySQL
+        db.session.execute(db.text("SET FOREIGN_KEY_CHECKS=0;"))
+        db.session.commit()
+        db.drop_all()
+        db.session.execute(db.text("SET FOREIGN_KEY_CHECKS=1;"))
+        db.session.commit()
+        db.create_all()
 
 
 @pytest.fixture(scope="function")
@@ -80,8 +103,8 @@ def integration_test_data(test_client):
     ds_meta_ids_subq = db.session.query(DSMetaData.id).filter(
         db.or_(DSMetaData.dataset_doi.like("10.1234/%"), DSMetaData.tags.like("%testing%"))
     ).scalar_subquery()
-    test_dataset_ids_subq = db.session.query(DataSet.id).filter(
-        DataSet.ds_meta_data_id.in_(ds_meta_ids_subq)
+    test_dataset_ids_subq = db.session.query(MaterialsDataset.id).filter(
+        MaterialsDataset.ds_meta_data_id.in_(ds_meta_ids_subq)
     ).scalar_subquery()
 
     # Borrar TODOS los records asociados con datasets de test
@@ -95,21 +118,17 @@ def integration_test_data(test_client):
     # Borrar autores
     db.session.query(Author).filter(Author.affiliation.in_(["MIT", "Stanford"])).delete(synchronize_session=False)
 
-    # Borrar FeatureModels que dependen de FMMetaData
-    fm_meta_ids_subq = db.session.query(FMMetaData.id).filter(
-        FMMetaData.uvl_filename.in_(["model1.uvl", "model2.uvl", "model3.uvl"])
-    ).scalar_subquery()
-    db.session.query(FeatureModel).filter(FeatureModel.fm_meta_data_id.in_(fm_meta_ids_subq)).delete(
-        synchronize_session=False
-    )
+    # Borrar MaterialRecords asociados a los datasets de test
+    db.session.query(MaterialRecord).filter(
+        MaterialRecord.materials_dataset_id.in_(test_dataset_ids_subq)
+    ).delete(synchronize_session=False)
 
-    # Borrar DataSets
-    db.session.query(DataSet).filter(DataSet.ds_meta_data_id.in_(ds_meta_ids_subq)).delete(synchronize_session=False)
+    # Borrar MaterialsDatasets
+    db.session.query(MaterialsDataset).filter(
+        MaterialsDataset.ds_meta_data_id.in_(ds_meta_ids_subq)
+    ).delete(synchronize_session=False)
 
     # Ahora borrar los metadatos
-    db.session.query(FMMetaData).filter(FMMetaData.uvl_filename.in_(["model1.uvl", "model2.uvl", "model3.uvl"])).delete(
-        synchronize_session=False
-    )
     db.session.query(DSMetaData).filter(
         db.or_(DSMetaData.dataset_doi.like("10.1234/%"), DSMetaData.tags.like("%testing%"))
     ).delete(synchronize_session=False)
@@ -155,45 +174,61 @@ def integration_test_data(test_client):
     db.session.flush()
 
     # Crear datasets
-    dataset1 = DataSet(user_id=user1.id, ds_meta_data_id=ds_meta1.id, created_at=datetime.now(timezone.utc))
-    dataset2 = DataSet(user_id=user1.id, ds_meta_data_id=ds_meta2.id, created_at=datetime.now(timezone.utc))
-    dataset3 = DataSet(user_id=user1.id, ds_meta_data_id=ds_meta3.id, created_at=datetime.now(timezone.utc))
+    dataset1 = MaterialsDataset(user_id=user1.id, ds_meta_data_id=ds_meta1.id, created_at=datetime.now(timezone.utc))
+    dataset2 = MaterialsDataset(user_id=user1.id, ds_meta_data_id=ds_meta2.id, created_at=datetime.now(timezone.utc))
+    dataset3 = MaterialsDataset(user_id=user1.id, ds_meta_data_id=ds_meta3.id, created_at=datetime.now(timezone.utc))
     db.session.add_all([dataset1, dataset2, dataset3])
     db.session.flush()
 
-    # Crear metadatos de feature models
-    fm_meta1 = FMMetaData(
-        uvl_filename="model1.uvl",
-        title="ML Feature Model",
-        description="Feature model for machine learning",
-        publication_type=PublicationType.CONFERENCE_PAPER,
-        publication_doi="10.1234/fm.2024.001",
-        tags="machine learning, features",
+    # Crear material records para cada dataset
+    material1 = MaterialRecord(
+        materials_dataset_id=dataset1.id,
+        material_name="Graphene",
+        chemical_formula="C",
+        structure_type="2D",
+        property_name="Thermal Conductivity",
+        property_value="5000",
+        property_unit="W/mK",
+        temperature=300,
+        data_source=DataSource.EXPERIMENTAL,
+        description="Machine learning model prediction for graphene",
     )
-    fm_meta2 = FMMetaData(
-        uvl_filename="model2.uvl",
-        title="Software Patterns Feature Model",
-        description="Feature model for software patterns",
-        publication_type=PublicationType.JOURNAL_ARTICLE,
-        publication_doi="10.1234/fm.2024.002",
-        tags="patterns, design, software",
+    material2 = MaterialRecord(
+        materials_dataset_id=dataset1.id,
+        material_name="Silicon",
+        chemical_formula="Si",
+        structure_type="Crystal",
+        property_name="Band Gap",
+        property_value="1.12",
+        property_unit="eV",
+        temperature=300,
+        data_source=DataSource.COMPUTATIONAL,
+        description="Computational study",
     )
-    fm_meta3 = FMMetaData(
-        uvl_filename="model3.uvl",
-        title="Unsync Feature Model",
-        description="Feature model for unsynchronized dataset",
-        publication_type=PublicationType.WORKING_PAPER,
-        publication_doi=None,
-        tags="testing, unsynchronized",
+    material3 = MaterialRecord(
+        materials_dataset_id=dataset2.id,
+        material_name="Steel Alloy",
+        chemical_formula="Fe-C",
+        structure_type="Metallic",
+        property_name="Yield Strength",
+        property_value="250",
+        property_unit="MPa",
+        temperature=298,
+        data_source=DataSource.EXPERIMENTAL,
+        description="Pattern analysis for steel",
     )
-    db.session.add_all([fm_meta1, fm_meta2, fm_meta3])
-    db.session.flush()
-
-    # Crear feature models
-    fm1 = FeatureModel(data_set_id=dataset1.id, fm_meta_data_id=fm_meta1.id)
-    fm2 = FeatureModel(data_set_id=dataset2.id, fm_meta_data_id=fm_meta2.id)
-    fm3 = FeatureModel(data_set_id=dataset3.id, fm_meta_data_id=fm_meta3.id)
-    db.session.add_all([fm1, fm2, fm3])
+    material4 = MaterialRecord(
+        materials_dataset_id=dataset3.id,
+        material_name="Test Material",
+        chemical_formula="XYZ",
+        structure_type="Unknown",
+        property_name="Test Property",
+        property_value="100",
+        property_unit="unit",
+        data_source=DataSource.OTHER,
+        description="Testing material",
+    )
+    db.session.add_all([material1, material2, material3, material4])
 
     # Crear autores
     author1 = Author(name="Jane Smith", affiliation="MIT", ds_meta_data_id=ds_meta1.id)
@@ -231,7 +266,9 @@ def integration_test_data(test_client):
         ds_meta_ids = db.session.query(DSMetaData.id).filter(
             db.or_(DSMetaData.dataset_doi.like("10.1234/%"), DSMetaData.tags.like("%testing%"))
         ).scalar_subquery()
-        test_dataset_ids = db.session.query(DataSet.id).filter(DataSet.ds_meta_data_id.in_(ds_meta_ids)).scalar_subquery()
+        test_dataset_ids = db.session.query(MaterialsDataset.id).filter(
+            MaterialsDataset.ds_meta_data_id.in_(ds_meta_ids)
+        ).scalar_subquery()
 
         # Borrar TODOS los records asociados con datasets de test (no solo los que tienen cookie de test)
         db.session.query(DSDownloadRecord).filter(DSDownloadRecord.dataset_id.in_(test_dataset_ids)).delete(
@@ -244,21 +281,17 @@ def integration_test_data(test_client):
         # Borrar autores
         db.session.query(Author).filter(Author.affiliation.in_(["MIT", "Stanford"])).delete(synchronize_session=False)
 
-        # Borrar FeatureModels que dependen de FMMetaData
-        fm_meta_ids = db.session.query(FMMetaData.id).filter(
-            FMMetaData.uvl_filename.in_(["model1.uvl", "model2.uvl", "model3.uvl"])
-        ).scalar_subquery()
-        db.session.query(FeatureModel).filter(FeatureModel.fm_meta_data_id.in_(fm_meta_ids)).delete(
-            synchronize_session=False
-        )
+        # Borrar MaterialRecords asociados a los datasets de test
+        db.session.query(MaterialRecord).filter(
+            MaterialRecord.materials_dataset_id.in_(test_dataset_ids)
+        ).delete(synchronize_session=False)
 
-        # Borrar DataSets
-        db.session.query(DataSet).filter(DataSet.ds_meta_data_id.in_(ds_meta_ids)).delete(synchronize_session=False)
+        # Borrar MaterialsDatasets
+        db.session.query(MaterialsDataset).filter(
+            MaterialsDataset.ds_meta_data_id.in_(ds_meta_ids)
+        ).delete(synchronize_session=False)
 
         # Ahora borrar los metadatos
-        db.session.query(FMMetaData).filter(FMMetaData.uvl_filename.in_(["model1.uvl", "model2.uvl", "model3.uvl"])).delete(
-            synchronize_session=False
-        )
         db.session.query(DSMetaData).filter(
             db.or_(DSMetaData.dataset_doi.like("10.1234/%"), DSMetaData.tags.like("%testing%"))
         ).delete(synchronize_session=False)

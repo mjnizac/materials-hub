@@ -206,7 +206,12 @@ var currentId = 0;
                                     console.log('Dataset sent successfully');
                                     response.json().then(data => {
                                         console.log(data.message);
-                                        window.location.href = "/dataset/list";
+                                        // Check if there's a redirect_url (for MaterialsDataset)
+                                        if (data.redirect_url) {
+                                            window.location.href = data.redirect_url;
+                                        } else {
+                                            window.location.href = "/dataset/list";
+                                        }
                                     });
                                 } else {
                                     response.json().then(data => {

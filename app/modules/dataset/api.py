@@ -5,7 +5,7 @@ from flask_restful import Resource
 from werkzeug.utils import secure_filename
 
 from app import db
-from app.modules.dataset.models import DataSet, MaterialsDataset
+from app.modules.dataset.models import MaterialsDataset
 from app.modules.dataset.repositories import MaterialRecordRepository, MaterialsDatasetRepository
 from core.resources.generic_resource import create_resource
 from core.serialisers.serializer import Serializer
@@ -24,7 +24,7 @@ dataset_fields = {
 
 dataset_serializer = Serializer(dataset_fields, related_serializers={"files": file_serializer})
 
-DataSetResource = create_resource(DataSet, dataset_serializer)
+# UVL removed: DataSetResource = create_resource(DataSet, dataset_serializer)
 
 # MaterialsDataset serializers
 material_record_fields = {
@@ -196,8 +196,8 @@ class MaterialsDatasetStatisticsResource(Resource):
 def init_blueprint_api(api_instance):
     """Function to register resources with the provided Flask-RESTful Api instance."""
     # Existing UVL dataset endpoints
-    api_instance.add_resource(DataSetResource, "/api/v1/datasets/", endpoint="datasets")
-    api_instance.add_resource(DataSetResource, "/api/v1/datasets/<int:id>", endpoint="dataset")
+    # UVL removed: api_instance.add_resource(DataSetResource, "/api/v1/datasets/", endpoint="datasets")
+    # UVL removed: api_instance.add_resource(DataSetResource, "/api/v1/datasets/<int:id>", endpoint="dataset")
 
     # MaterialsDataset CRUD endpoints
     api_instance.add_resource(MaterialsDatasetResource, "/api/v1/materials-datasets/", endpoint="materials_datasets")

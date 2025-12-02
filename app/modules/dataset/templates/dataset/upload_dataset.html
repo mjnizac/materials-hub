@@ -61,7 +61,7 @@
 
                         <div class="row" style="padding-left: 2rem">
 
-                            <div class="col-lg-6 col-xs-12 col-md-12">
+                            <div class="col-12">
                                 <div class="mb-3">
                                     {{ form.title.label(class="form-label") }} *
                                     {{ form.title(class="form-control") }}
@@ -227,9 +227,22 @@
 
         <div class="col-xl-6 col-lg-12 col-md-12 col-sm-12">
 
-            <h1 class="h3 mb-3 mt-2">CSV models</h1>
+            <h1 class="h3 mb-3 mt-2">Materials Dataset Information</h1>
 
-            <div id="uploaded_models_form" style="padding-left: 2rem">
+            <div style="padding-left: 2rem">
+                <div class="alert alert-info" role="alert">
+                    <h5 class="alert-heading"><i data-feather="info"></i> CSV File Upload</h5>
+                    <p>After creating your materials dataset, you'll be redirected to upload a CSV file with your materials data.</p>
+                    <p>The CSV file should contain the following columns:</p>
+                    <ul>
+                        <li><strong>Required:</strong> material_name, property_name, property_value</li>
+                        <li><strong>Optional:</strong> chemical_formula, structure_type, composition_method, property_unit, temperature, pressure, data_source, uncertainty, description</li>
+                    </ul>
+                    <p class="mb-0"><strong>Example file:</strong> <code>/examples/materials_example.csv</code></p>
+                </div>
+            </div>
+
+            <div id="uploaded_models_form" style="display: none; padding-left: 2rem">
 
                 <form action="{{ url_for('dataset.upload') }}" class="dropzone" id="myDropzone">
                     <div id="dropzone-text"></div>
@@ -463,27 +476,27 @@
 
     </div>
 
-    <div class="row" id="upload_dataset" style="display: none">
+    <div class="row" id="upload_dataset">
 
         <div class="col-12">
 
             <hr>
 
-            <h1 class="h3 mb-3 mt-2">Upload dataset</h1>
+            <h1 class="h3 mb-3 mt-2">Create Materials Dataset</h1>
 
             <div style="padding-left: 2rem">
 
                 <label class="form-check">
                     <input id="agreeCheckbox" class="form-check-input" type="checkbox" value="">
                     <span class="form-check-label" style="font-size: 15px">
-                                I agree to have my feature models automatically uploaded to Zenodo and made available to the public according to the <a
+                                I agree to have my materials dataset automatically uploaded to Fakenodo/Zenodo and made available to the public according to the <a
                             href="https://en.wikipedia.org/wiki/Open_science" target="_blank">Open Science</a> manifesto
                             </span>
                 </label>
 
                 <button id="upload_button" class="btn btn-primary mt-2" disabled>
                     <i data-feather="upload" class="center-button-icon"></i>
-                    Upload dataset</button>
+                    Create Materials Dataset</button>
 
                 <div id="loading" style="display: none">
                     <img width="40px" src="{{ url_for("static", filename="gifs/loading.svg") }}"/>

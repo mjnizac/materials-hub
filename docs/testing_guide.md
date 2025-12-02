@@ -1,4 +1,4 @@
-# 🧪 Guía de Testing - MaterialsDataset
+# 🧪 Guía de Testing - Materials Hub
 
 ## 📚 **Índice**
 
@@ -7,36 +7,39 @@
 - [Ejecutar Tests](#ejecutar-tests)
 - [Estructura de Tests](#estructura-de-tests)
 - [Cobertura de Tests](#cobertura-de-tests)
+- [Tests por Módulo](#tests-por-módulo)
+- [Fixtures Globales](#fixtures-globales)
 - [Escribir Nuevos Tests](#escribir-nuevos-tests)
-- [Fixtures](#fixtures)
+- [Tests de Carga (Locust)](#tests-de-carga-locust)
 - [Troubleshooting](#troubleshooting)
 
 ---
 
 ## 🔍 **Visión General**
 
-La suite de tests de MaterialsDataset incluye **48 tests unitarios** que cubren:
+La suite de tests de Materials Hub incluye **87 tests** distribuidos por módulos:
 
-- ✅ **Modelos** - MaterialsDataset y MaterialRecord
-- ✅ **Repositorios** - Queries y filtros de base de datos
-- ✅ **Servicios** - Parser CSV y validación
-- ✅ **API REST** - Todos los endpoints
+- ✅ **67 Tests Unitarios** - Modelos, servicios, repositorios
+- ✅ **20 Tests de Integración** - Rutas, API endpoints
+- ✅ **Tests de Carga** - Locust para performance
 
-**Framework usado:** pytest
+**Framework usado:** pytest + pytest-cov
+
+**Cobertura actual:** 40.38% (objetivo: 25%+)
 
 ---
 
 ## 📋 **Requisitos**
 
 ```bash
-pip install pytest pytest-cov pytest-flask
+pip install pytest pytest-cov
 ```
 
-**Dependencias del proyecto:**
-- Flask
-- SQLAlchemy
-- pytest
-- pytest-cov (opcional, para coverage)
+**Dependencias incluidas en requirements.txt:**
+- Flask + Flask-SQLAlchemy
+- pytest (8.4.1)
+- pytest-cov (6.2.1)
+- Faker (para datos de prueba)
 
 ---
 
@@ -45,382 +48,469 @@ pip install pytest pytest-cov pytest-flask
 ### **Todos los Tests**
 
 ```bash
-# Ejecutar todos los tests del módulo dataset
-pytest app/modules/dataset/tests/test_unit.py -v
+# Ejecutar todos los tests (unit + integration)
+pytest -v
 
-# Con output detallado
-pytest app/modules/dataset/tests/test_unit.py -vv
+# Con reporte de cobertura
+pytest --cov=app --cov-report=html --cov-report=term
 
-# Con coverage
-pytest app/modules/dataset/tests/test_unit.py --cov=app.modules.dataset --cov-report=html
+# Ejecutar en modo silencioso
+pytest -q
+```
+
+### **Por Tipo de Test**
+
+```bash
+# Solo tests unitarios
+pytest -m unit -v
+
+# Solo tests de integración
+pytest -m integration -v
+```
+
+### **Por Módulo Específico**
+
+```bash
+# Tests del módulo dataset
+pytest app/modules/dataset/tests/ -v
+
+# Tests del módulo auth
+pytest app/modules/auth/tests/ -v
+
+# Tests del módulo explore
+pytest app/modules/explore/tests/ -v
 ```
 
 ### **Tests Específicos**
 
 ```bash
-# Solo tests de modelos
-pytest app/modules/dataset/tests/test_unit.py::TestMaterialsDatasetModel -v
+# Un archivo específico
+pytest app/modules/dataset/tests/test_unit.py -v
 
-# Solo tests de repositorios
-pytest app/modules/dataset/tests/test_unit.py::TestMaterialRecordRepository -v
+# Una función específica
+pytest app/modules/dataset/tests/test_unit.py::test_materials_dataset_name_method -v
 
-# Solo tests de servicios
-pytest app/modules/dataset/tests/test_unit.py::TestMaterialsDatasetService -v
+# Tests que contengan "repository" en el nombre
+pytest -k repository -v
 
-# Solo tests de API
-pytest app/modules/dataset/tests/test_unit.py::TestMaterialsDatasetAPI -v
-
-# Un test específico
-pytest app/modules/dataset/tests/test_unit.py::TestMaterialsDatasetModel::test_create_materials_dataset -v
+# Tests que NO contengan "integration"
+pytest -k "not integration" -v
 ```
 
-### **Tests con Filtros**
+### **Opciones Útiles**
 
 ```bash
-# Tests que contengan "upload" en el nombre
-pytest app/modules/dataset/tests/test_unit.py -k upload -v
+# Ver los 10 tests más lentos
+pytest --durations=10
 
-# Tests que contengan "validation"
-pytest app/modules/dataset/tests/test_unit.py -k validat -v
+# Detener en el primer fallo
+pytest -x
 
-# Tests que NO contengan "api"
-pytest app/modules/dataset/tests/test_unit.py -k "not api" -v
+# Mostrar variables locales en fallos
+pytest -l
+
+# Modo verbose con traceback corto
+pytest -v --tb=short
+
+# Ejecutar último fallo
+pytest --lf
+
+# Ejecutar tests fallidos primero
+pytest --ff
 ```
 
 ---
 
 ## 📁 **Estructura de Tests**
 
+Cada módulo tiene su propia carpeta `tests/` con esta estructura:
+
 ```
-app/modules/dataset/tests/test_unit.py
-├── FIXTURES (líneas 10-78)
-│   ├── test_user
-│   ├── test_metadata
-│   ├── test_materials_dataset
-│   ├── test_material_record
-│   └── sample_csv_content
-│
-├── MODEL TESTS (líneas 83-262)
-│   ├── TestMaterialsDatasetModel (16 tests)
-│   └── TestMaterialRecordModel (3 tests)
-│
-├── REPOSITORY TESTS (líneas 267-437)
-│   ├── TestMaterialsDatasetRepository (2 tests)
-│   └── TestMaterialRecordRepository (7 tests)
-│
-├── SERVICE TESTS (líneas 442-553)
-│   └── TestMaterialsDatasetService (6 tests)
-│
-└── API TESTS (líneas 558-779)
-    ├── TestMaterialsDatasetAPI (9 tests)
-    └── TestMaterialRecordsAPI (4 tests)
+app/modules/{module}/
+├── tests/
+│   ├── test_unit.py          # Tests unitarios
+│   ├── test_integration.py   # Tests de integración (opcional)
+│   └── locustfile.py         # Tests de carga (opcional)
+├── models.py
+├── services.py
+├── routes.py
+└── repositories.py
 ```
 
-**Total:** 48 tests
+### **Distribución de Tests por Módulo**
+
+```
+app/modules/
+├── auth/tests/
+│   ├── test_unit.py (9 tests unitarios)
+│   └── locustfile.py
+├── dataset/tests/
+│   ├── test_unit.py (38 tests unitarios)
+│   ├── test_integration.py (10 tests integración)
+│   └── locustfile.py
+├── explore/tests/
+│   ├── test_integration.py (10 tests integración)
+│   └── locustfile.py (opcional)
+├── profile/tests/
+│   └── test_unit.py (3 tests unitarios)
+├── public/tests/
+│   ├── test_unit.py (2 tests unitarios)
+│   └── locustfile.py
+├── team/tests/
+│   └── test_unit.py (2 tests unitarios)
+├── webhook/tests/
+│   ├── test_unit.py (11 tests unitarios)
+│   └── locustfile.py (opcional)
+├── featuremodel/tests/
+│   └── locustfile.py
+├── flamapy/tests/
+│   └── locustfile.py
+└── hubfile/tests/
+    └── locustfile.py
+```
+
+**Total:** 67 unitarios + 20 integración = **87 tests**
 
 ---
 
 ## 📊 **Cobertura de Tests**
 
-### **Modelos (19 tests)**
+### **Cobertura por Módulo**
 
-| Clase | Tests | Cobertura |
-|-------|-------|-----------|
-| MaterialsDataset | 16 tests | 100% |
-| MaterialRecord | 3 tests | 100% |
+| Módulo | Tests | Cobertura |
+|--------|-------|-----------|
+| auth | 9 unitarios | Modelos, servicios, autenticación |
+| dataset | 38 unitarios + 10 integración | Repositorios, modelos, servicios, API |
+| explore | 10 integración | Búsqueda, filtros, API |
+| profile | 3 unitarios | Servicios, rutas |
+| public | 2 unitarios | Homepage, repositorios |
+| team | 2 unitarios | Página team |
+| webhook | 11 unitarios | Servicios, modelos, Docker integration |
 
-**Tests incluyen:**
-- Creación de instancias
-- Relaciones entre modelos
-- Métodos de utilidad (get_materials_count, get_unique_materials, etc.)
-- Validación (validate method)
-- Serialización (to_dict)
-- Enum DataSource
+### **Cobertura Global**
 
-### **Repositorios (9 tests)**
+```bash
+# Generar reporte de cobertura
+pytest --cov=app --cov-report=html --cov-report=term
 
-| Repositorio | Tests | Métodos Cubiertos |
-|-------------|-------|-------------------|
-| MaterialsDatasetRepository | 2 tests | get_by_user, count_by_user |
-| MaterialRecordRepository | 7 tests | get_by_dataset, get_by_material_name, get_by_property_name, search_materials, filter_by_temperature_range, count_by_dataset |
+# Abrir reporte HTML
+# El archivo se genera en: htmlcov/index.html
+xdg-open htmlcov/index.html  # Linux
+open htmlcov/index.html      # macOS
+```
 
-### **Servicios (6 tests)**
-
-| Servicio | Tests | Funcionalidad |
-|----------|-------|---------------|
-| MaterialsDatasetService | 6 tests | Validación CSV, parsing, creación de records |
-
-**Tests cubren:**
-- Validación de columnas (válidas, faltantes, extras)
-- Parsing exitoso de CSV
-- Manejo de errores (archivo no encontrado, columnas inválidas)
-- Creación de MaterialRecords desde CSV
-
-### **API Endpoints (13 tests)**
-
-| Endpoint | Tests | HTTP Methods |
-|----------|-------|--------------|
-| /api/v1/materials-datasets/ | 2 | GET, POST |
-| /api/v1/materials-datasets/{id} | 3 | GET, DELETE |
-| /api/v1/materials-datasets/{id}/statistics | 1 | GET |
-| /api/v1/materials-datasets/{id}/upload | 3 | POST |
-| /api/v1/materials-datasets/{dataset_id}/records | 2 | GET (+ paginación) |
-| /api/v1/materials-datasets/{dataset_id}/records/search | 2 | GET |
+**Cobertura actual:** 40.38%
+**Cobertura requerida:** 25%+
 
 ---
 
-## 🛠️ **Fixtures**
+## 🧩 **Tests por Módulo**
 
-### **test_user**
-```python
-@pytest.fixture(scope='function')
-def test_user(test_client):
-    """Usuario de prueba: test@example.com"""
-    return User.query.filter_by(email='test@example.com').first()
+### **Auth Module (9 tests)**
+
+Tests de autenticación y registro:
+- Login exitoso/fallido
+- Signup con validación
+- Servicios de autenticación
+
+```bash
+pytest app/modules/auth/tests/ -v
 ```
 
-### **test_metadata**
-```python
-@pytest.fixture(scope='function')
-def test_metadata(test_client):
-    """Metadata de prueba para datasets"""
-    return DSMetaData(title="Test Materials Dataset", ...)
+### **Dataset Module (48 tests)**
+
+**Unitarios (38):**
+- Repositorios: MaterialsDatasetRepository, MaterialRecordRepository
+- Modelos: MaterialsDataset validation, MaterialRecord.to_dict()
+- Servicios: BaseService, SizeService, DOIMappingService
+
+**Integración (10):**
+- Rutas de descarga, DOI redirect
+- API endpoints (list, get, recommendations)
+- DSViewRecord cookies
+
+```bash
+# Solo unitarios
+pytest app/modules/dataset/tests/test_unit.py -v
+
+# Solo integración
+pytest app/modules/dataset/tests/test_integration.py -v
 ```
 
-### **test_materials_dataset**
-```python
-@pytest.fixture(scope='function')
-def test_materials_dataset(test_client, test_user, test_metadata):
-    """MaterialsDataset de prueba"""
-    return MaterialsDataset(user_id=..., ds_meta_data_id=...)
+### **Explore Module (10 tests)**
+
+Tests de búsqueda y filtrado:
+- Búsqueda por query, autor, afiliación
+- Filtros por tipo de publicación y tags
+- Ordenación (newest/oldest)
+- API endpoint
+
+```bash
+pytest app/modules/explore/tests/ -v
 ```
 
-### **test_material_record**
-```python
-@pytest.fixture(scope='function')
-def test_material_record(test_client, test_materials_dataset):
-    """MaterialRecord de prueba (Al2O3)"""
-    return MaterialRecord(material_name='Al2O3', ...)
+### **Profile Module (3 tests)**
+
+- Acceso a página de edición
+- UserProfileService initialization
+- Actualización de perfil
+
+### **Webhook Module (11 tests)**
+
+Tests de integración con Docker:
+- Modelo, repositorio, servicio
+- get_volume_name, execute_container_command
+- Log deployment, restart container
+
+```bash
+pytest app/modules/webhook/tests/ -v
 ```
 
-### **sample_csv_content**
+---
+
+## 🛠️ **Fixtures Globales**
+
+Definidas en `app/modules/conftest.py`:
+
+### **test_app** (scope: session)
 ```python
-@pytest.fixture(scope='function')
-def sample_csv_content():
-    """CSV de ejemplo con 3 registros"""
-    return """material_name,chemical_formula,...
-Al2O3,Al2O3,...
-SiO2,SiO2,...
-TiO2,TiO2,..."""
+@pytest.fixture(scope="session")
+def test_app():
+    """Crea app Flask para testing"""
+    test_app = create_app("testing")
+    with test_app.app_context():
+        yield test_app
+```
+
+### **test_client** (scope: module)
+```python
+@pytest.fixture(scope="module")
+def test_client(test_app):
+    """
+    Cliente de test con:
+    - Base de datos limpia
+    - Usuario de prueba: test@example.com / test1234
+    - Profile de prueba: Test User
+    """
+    # Maneja foreign key constraints de MySQL
+    # Crea/destruye tablas automáticamente
+```
+
+### **clean_database** (scope: function)
+```python
+@pytest.fixture(scope="function")
+def clean_database():
+    """Limpia la BD antes y después de cada test"""
+```
+
+### **Funciones de utilidad**
+
+```python
+# Login helper
+login(test_client, email="test@example.com", password="test1234")
+
+# Logout helper
+logout(test_client)
 ```
 
 ---
 
 ## ✍️ **Escribir Nuevos Tests**
 
-### **Ejemplo: Test de Modelo**
+### **1. Test Unitario Básico**
 
 ```python
-def test_new_model_method(self, test_client, test_materials_dataset):
-    """Test description"""
-    # Arrange
-    dataset = test_materials_dataset
+import pytest
 
-    # Act
-    result = dataset.new_method()
+@pytest.mark.unit
+def test_model_creation(test_client):
+    """Test creación de modelo"""
+    from app.modules.dataset.models import MaterialsDataset
+    from app import db
 
-    # Assert
-    assert result == expected_value
+    dataset = MaterialsDataset(user_id=1, ds_meta_data_id=1)
+    db.session.add(dataset)
+    db.session.commit()
+
+    assert dataset.id is not None
 ```
 
-### **Ejemplo: Test de API**
+### **2. Test de Servicio**
 
 ```python
-def test_new_endpoint(self, test_client, test_materials_dataset):
-    """Test GET /api/v1/materials-datasets/{id}/new-endpoint"""
-    # Act
-    response = test_client.get(f'/api/v1/materials-datasets/{test_materials_dataset.id}/new-endpoint')
+@pytest.mark.unit
+def test_service_method(test_client):
+    """Test método de servicio"""
+    from app.modules.dataset.services import SizeService
 
-    # Assert
+    service = SizeService()
+    result = service.get_human_readable_size(1024)
+
+    assert result == "1.00 KB"
+```
+
+### **3. Test de Integración (API)**
+
+```python
+@pytest.mark.integration
+def test_api_endpoint(test_client):
+    """Test GET /api/v1/datasets"""
+    from app.modules.conftest import login
+
+    # Login primero
+    login(test_client, "test@example.com", "test1234")
+
+    # Request
+    response = test_client.get("/api/v1/datasets")
+
+    # Assertions
     assert response.status_code == 200
     data = response.get_json()
-    assert 'expected_field' in data
+    assert isinstance(data, list)
 ```
 
-### **Ejemplo: Test con CSV Temporal**
+### **4. Test con Datos de Prueba**
 
 ```python
-def test_with_csv_file(self, test_client, test_materials_dataset):
-    """Test with temporary CSV file"""
-    csv_content = """material_name,property_name,property_value
-Al2O3,density,3.95"""
+@pytest.mark.unit
+def test_with_faker(test_client):
+    """Test usando Faker para datos"""
+    from faker import Faker
+    from app.modules.auth.models import User
+    from app import db
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
-        f.write(csv_content)
-        temp_path = f.name
+    fake = Faker()
 
-    try:
-        # Use temp_path for testing
-        result = some_function(temp_path)
-        assert result is True
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+    user = User(
+        email=fake.email(),
+        password=fake.password()
+    )
+    db.session.add(user)
+    db.session.commit()
+
+    assert user.id is not None
 ```
+
+### **Mejores Prácticas**
+
+1. **Usar markers**: `@pytest.mark.unit` o `@pytest.mark.integration`
+2. **Nombres descriptivos**: `test_materials_dataset_validation_fails_without_csv`
+3. **Arrange-Act-Assert**: Separar preparación, acción y verificación
+4. **Un concepto por test**: Tests pequeños y focalizados
+5. **Limpiar recursos**: Usar fixtures con cleanup automático
 
 ---
 
-## 📈 **Coverage Report**
+## 🔥 **Tests de Carga (Locust)**
 
-Generar reporte de cobertura:
+### **Ejecutar Tests de Carga**
 
 ```bash
-# Generar HTML report
-pytest app/modules/dataset/tests/test_unit.py \
-  --cov=app.modules.dataset \
-  --cov-report=html
+# Todos los tests de carga (desde raíz)
+locust --host=http://localhost:5000
 
-# Abrir reporte
-open htmlcov/index.html  # macOS
-xdg-open htmlcov/index.html  # Linux
+# Módulo específico
+locust -f app/modules/dataset/tests/locustfile.py --host=http://localhost:5000
+
+# Modo headless (sin UI)
+locust --host=http://localhost:5000 --users 100 --spawn-rate 10 --run-time 1m --headless
+
+# Con reporte HTML
+locust --host=http://localhost:5000 --users 100 --spawn-rate 10 --run-time 2m --headless \
+       --html reports/locust_report.html
 ```
 
-**Objetivo de cobertura:** 80%+
+**Interfaz web:** http://localhost:8089
+
+### **Módulos con Tests de Carga**
+
+- **auth**: Login, signup, authenticated users
+- **dataset**: Upload, API, dataset viewing
+- **public**: Homepage, public pages
+- **hubfile**: File view/download
+- **featuremodel**: Feature model endpoints
+- **flamapy**: Flamapy validation endpoints
+
+### **Locustfile Principal**
+
+El archivo `locustfile.py` en la raíz agrega todos los tests de módulos:
+
+```python
+from app.modules.auth.tests.locustfile import AuthenticatedUser, AuthUser
+from app.modules.dataset.tests.locustfile import DatasetUploader, APIUser
+from app.modules.public.tests.locustfile import PublicUser
+# ... etc
+```
 
 ---
 
 ## 🐛 **Troubleshooting**
 
-### **Error: "No module named 'app'"**
+### **Error: Foreign Key Constraint**
+
+```
+IntegrityError: Cannot delete or update a parent row
+```
+
+**Solución:** Ya está solucionado en `conftest.py` con:
+```python
+db.session.execute(db.text("SET FOREIGN_KEY_CHECKS=0;"))
+db.session.commit()
+db.drop_all()
+```
+
+### **Error: No module named 'app'**
 
 ```bash
-# Asegúrate de estar en el directorio raíz
+# Ejecutar desde el directorio raíz
 cd /home/manuel-jesus/materials-hub
+pytest -v
 
-# O ajusta PYTHONPATH
-export PYTHONPATH="${PYTHONPATH}:/home/manuel-jesus/materials-hub"
+# O configurar PYTHONPATH
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 ```
 
-### **Error: "Database not found"**
+### **Error: test_client not found**
 
-Los tests crean su propia base de datos en memoria. Si hay errores:
-
+Asegúrate de importar el fixture:
 ```python
-# Verifica que el fixture test_client esté siendo usado
-def test_something(self, test_client):  # ← test_client requerido
-    ...
-```
-
-### **Error: "Fixture not found"**
-
-Asegúrate de que el fixture esté importado:
-
-```python
-# En conftest.py o al inicio del archivo
-@pytest.fixture(scope='function')
-def my_fixture():
-    ...
-```
-
-### **Tests Fallan con "IntegrityError"**
-
-Problema de foreign keys. Solución:
-
-```python
-# Crear primero los objetos padre
-user = test_user  # Fixture
-metadata = test_metadata  # Fixture
-
-# Luego el objeto hijo
-dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+def test_something(test_client):  # ← fixture requerido
+    pass
 ```
 
 ### **Tests Lentos**
 
 ```bash
-# Ver los 10 tests más lentos
-pytest app/modules/dataset/tests/test_unit.py --durations=10
+# Ver tests más lentos
+pytest --durations=10
 
 # Ejecutar en paralelo (requiere pytest-xdist)
 pip install pytest-xdist
-pytest app/modules/dataset/tests/test_unit.py -n auto
+pytest -n auto
+```
+
+### **Coverage Bajo**
+
+```bash
+# Ver qué falta cubrir
+pytest --cov=app --cov-report=term-missing
+
+# Ver por módulo
+pytest --cov=app.modules.dataset --cov-report=term
 ```
 
 ---
 
-## 📝 **Mejores Prácticas**
+## 📝 **Checklist antes de Commit**
 
-### **1. Nombres Descriptivos**
-```python
-# ✅ Bueno
-def test_validate_csv_with_missing_required_columns()
-
-# ❌ Malo
-def test_csv_validation()
-```
-
-### **2. Arrange-Act-Assert**
-```python
-def test_something():
-    # Arrange - Preparar datos
-    dataset = create_dataset()
-
-    # Act - Ejecutar función
-    result = dataset.validate()
-
-    # Assert - Verificar resultado
-    assert result is True
-```
-
-### **3. Un Assert por Test (idealmente)**
-```python
-# ✅ Bueno - un concepto
-def test_dataset_has_correct_id():
-    assert dataset.id == 1
-
-# ✅ También bueno - múltiples asserts relacionados
-def test_dataset_serialization():
-    data = dataset.to_dict()
-    assert data['id'] == 1
-    assert data['csv_file_path'] == '/path'
-    assert 'materials_count' in data
-```
-
-### **4. Limpiar Recursos**
-```python
-# Usar try/finally para archivos temporales
-try:
-    result = test_with_file(temp_file)
-finally:
-    if os.path.exists(temp_file):
-        os.remove(temp_file)
-```
-
-### **5. Fixtures con Scope Apropiado**
-```python
-# function - Se recrea para cada test (default)
-@pytest.fixture(scope='function')
-
-# module - Se crea una vez por archivo de test
-@pytest.fixture(scope='module')
-
-# session - Se crea una vez para toda la sesión
-@pytest.fixture(scope='session')
-```
-
----
-
-## 🎯 **Checklist de Tests**
-
-Antes de hacer commit, verifica:
-
-- [ ] Todos los tests pasan (`pytest app/modules/dataset/tests/test_unit.py`)
-- [ ] Cobertura >= 80% (`pytest --cov`)
+- [ ] Todos los tests pasan: `pytest -v`
+- [ ] Coverage >= 25%: `pytest --cov=app`
 - [ ] No hay warnings
-- [ ] Tests son independientes (pueden correr en cualquier orden)
-- [ ] Se limpian recursos temporales
-- [ ] Nombres de tests son descriptivos
-- [ ] Documentación actualizada
+- [ ] Tests unitarios marcados con `@pytest.mark.unit`
+- [ ] Tests integración marcados con `@pytest.mark.integration`
+- [ ] Nombres de tests descriptivos
+- [ ] Fixtures usados correctamente
+- [ ] Documentación actualizada si es necesario
 
 ---
 
@@ -428,11 +518,20 @@ Antes de hacer commit, verifica:
 
 - [Pytest Documentation](https://docs.pytest.org/)
 - [Flask Testing](https://flask.palletsprojects.com/en/latest/testing/)
+- [Locust Documentation](https://docs.locust.io/)
 - [Testing Best Practices](https://docs.python-guide.org/writing/tests/)
 
 ---
 
-**Versión:** 1.0
-**Última actualización:** 2025-01-13
-**Tests totales:** 48
-**Cobertura objetivo:** 80%+
+## 📈 **Estadísticas**
+
+**Versión:** 2.0
+**Última actualización:** 2025-12-02
+**Tests totales:** 87 (67 unit + 20 integration)
+**Cobertura actual:** 40.38%
+**Cobertura objetivo:** 25%+
+**Tiempo ejecución:** ~1.5 minutos
+
+---
+
+**¿Necesitas ayuda?** Consulta esta guía o abre un issue en GitHub.

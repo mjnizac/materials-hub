@@ -44,11 +44,17 @@
                                     <a href="{{ url_for('dataset.materials_dataset_statistics', dataset_id=dataset.id) }}" title="View statistics">
                                         <i data-feather="bar-chart-2"></i>
                                     </a>
-                                    <a href="{{ url_for('dataset.upload_materials_csv', dataset_id=dataset.id) }}" title="Upload CSV">
-                                        <i data-feather="upload"></i>
+                                    {% if dataset.csv_file_path %}
+                                    <a href="{{ url_for('dataset.download_dataset', dataset_id=dataset.id) }}" title="Download CSV">
+                                        <i data-feather="download"></i>
                                     </a>
-                                    <a href="{{ url_for('dataset.search_materials', dataset_id=dataset.id) }}" title="Search materials">
-                                        <i data-feather="search"></i>
+                                    {% else %}
+                                    <span class="text-muted" title="No CSV file uploaded">
+                                        <i data-feather="download"></i>
+                                    </span>
+                                    {% endif %}
+                                    <a href="#" onclick="deleteDataset({{ dataset.id }}, '{{ dataset.ds_meta_data.title }}'); return false;" class="text-danger" title="Delete dataset">
+                                        <i data-feather="trash-2"></i>
                                     </a>
                                 </td>
                             </tr>
@@ -81,5 +87,48 @@
             </div>
         </div>
     {% endif %}
+
+<!-- Hidden form for CSRF token -->
+<form id="csrf-form" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+</form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        feather.replace();
+    });
+
+    /**
+     * Delete the entire dataset with confirmation
+     */
+    function deleteDataset(datasetId, datasetTitle) {
+        const confirmation = prompt(
+            `WARNING: This will permanently delete the dataset "${datasetTitle}", all material records, and the CSV file.\n\n` +
+            'Type "DELETE" to confirm this action:'
+        );
+
+        if (confirmation === 'DELETE') {
+            // Create a form and submit it
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/materials/${datasetId}/delete`;
+
+            // Add CSRF token - get it from hidden form
+            const csrfInput = document.querySelector('#csrf-form input[name="csrf_token"]');
+            if (csrfInput && csrfInput.value) {
+                const newCsrfInput = document.createElement('input');
+                newCsrfInput.type = 'hidden';
+                newCsrfInput.name = 'csrf_token';
+                newCsrfInput.value = csrfInput.value;
+                form.appendChild(newCsrfInput);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+        } else if (confirmation !== null) {
+            alert('Deletion cancelled. You must type "DELETE" exactly to confirm.');
+        }
+    }
+</script>
 
 {% endblock %}

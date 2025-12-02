@@ -43,7 +43,6 @@ class Author(db.Model):
     affiliation = db.Column(db.String(120))
     orcid = db.Column(db.String(120))
     ds_meta_data_id = db.Column(db.Integer, db.ForeignKey("ds_meta_data.id"))
-    fm_meta_data_id = db.Column(db.Integer, db.ForeignKey("fm_meta_data.id"))
 
     def to_dict(self):
         return {"name": self.name, "affiliation": self.affiliation, "orcid": self.orcid}
@@ -99,9 +98,9 @@ class BaseDataset(db.Model):
         return f"https://zenodo.org/record/{self.ds_meta_data.deposition_id}" if self.ds_meta_data.dataset_doi else None
 
     def get_uvlhub_doi(self):
-        from app.modules.dataset.services import DataSetService
-
-        return DataSetService().get_uvlhub_doi(self)
+        import os
+        domain = os.getenv("DOMAIN", "localhost")
+        return f"http://{domain}/doi/{self.ds_meta_data.dataset_doi}"
 
     # Abstract methods to be implemented by subclasses
     def validate(self):
@@ -145,56 +144,6 @@ class BaseDataset(db.Model):
 
     def __repr__(self):
         return f"{self.__class__.__name__}<{self.id}>"
-
-
-# UVL-specific dataset (original DataSet functionality)
-class UVLDataset(BaseDataset):
-    __tablename__ = "data_set"  # Keep original table name for backward compatibility
-
-    # Relationships specific to UVL datasets
-    ds_meta_data = db.relationship("DSMetaData", backref=db.backref("data_set", uselist=False))
-    feature_models = db.relationship("FeatureModel", backref="data_set", lazy=True, cascade="all, delete")
-
-    def files(self):
-        """Get all UVL files from feature models"""
-        return [file for fm in self.feature_models for file in fm.files]
-
-    def get_files_count(self):
-        """Count files across all feature models"""
-        return sum(len(fm.files) for fm in self.feature_models)
-
-    def get_file_total_size(self):
-        """Calculate total size of all UVL files"""
-        return sum(file.size for fm in self.feature_models for file in fm.files)
-
-    def validate(self):
-        """Validate UVL dataset structure"""
-        # Validations specific to UVL:
-        # - Verify feature models exist
-        # - Check UVL file format
-        # - Validate feature model metadata
-        if not self.feature_models:
-            raise ValueError("UVL dataset must have at least one feature model")
-
-        for fm in self.feature_models:
-            if not fm.fm_meta_data:
-                raise ValueError(f"Feature model {fm.id} is missing metadata")
-
-        return True
-
-    def to_dict(self):
-        """Extended dictionary with UVL-specific data"""
-        base_dict = super().to_dict()
-        base_dict.update(
-            {
-                "files": [file.to_dict() for fm in self.feature_models for file in fm.files],
-                "files_count": self.get_files_count(),
-                "total_size_in_bytes": self.get_file_total_size(),
-                "total_size_in_human_format": self.get_file_total_size_for_human(),
-                "dataset_type": "uvl",
-            }
-        )
-        return base_dict
 
 
 # Material record model - represents a single row in the materials CSV
@@ -248,8 +197,18 @@ class MaterialsDataset(BaseDataset):
 
     # Relationships specific to Materials datasets
     user = db.relationship("User", backref=db.backref("materials_datasets", lazy=True))
-    ds_meta_data = db.relationship("DSMetaData", backref=db.backref("materials_dataset", uselist=False))
-    material_records = db.relationship("MaterialRecord", backref="materials_dataset", lazy=True, cascade="all, delete")
+    ds_meta_data = db.relationship(
+        "DSMetaData", backref=db.backref("materials_dataset", uselist=False), cascade="all, delete"
+    )
+    material_records = db.relationship(
+        "MaterialRecord", backref="materials_dataset", lazy=True, cascade="all, delete"
+    )
+    download_records = db.relationship(
+        "DSDownloadRecord", backref="materials_dataset", lazy=True, cascade="all, delete"
+    )
+    view_records = db.relationship(
+        "DSViewRecord", backref="materials_dataset", lazy=True, cascade="all, delete"
+    )
 
     def files(self):
         """Get CSV files for materials dataset"""
@@ -304,6 +263,8 @@ class MaterialsDataset(BaseDataset):
 
     def to_dict(self):
         """Extended dictionary with materials-specific data"""
+        from flask import url_for
+
         base_dict = super().to_dict()
         base_dict.update(
             {
@@ -317,20 +278,16 @@ class MaterialsDataset(BaseDataset):
                 "total_size_in_bytes": self.get_file_total_size(),
                 "total_size_in_human_format": self.get_file_total_size_for_human(),
                 "dataset_type": "materials",
+                "url": url_for('dataset.view_materials_dataset', dataset_id=self.id, _external=True),
             }
         )
         return base_dict
 
 
-# Compatibility alias: Keep DataSet pointing to UVLDataset for backward compatibility
-# This is just a type alias, not a separate table
-DataSet = UVLDataset
-
-
 class DSDownloadRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    dataset_id = db.Column(db.Integer, db.ForeignKey("data_set.id"))
+    dataset_id = db.Column(db.Integer, db.ForeignKey("materials_dataset.id"))
     download_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     download_cookie = db.Column(db.String(36), nullable=False)  # Assuming UUID4 strings
 
@@ -346,7 +303,7 @@ class DSDownloadRecord(db.Model):
 class DSViewRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    dataset_id = db.Column(db.Integer, db.ForeignKey("data_set.id"))
+    dataset_id = db.Column(db.Integer, db.ForeignKey("materials_dataset.id"))
     view_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     view_cookie = db.Column(db.String(36), nullable=False)  # Assuming UUID4 strings
 

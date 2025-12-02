@@ -2,6 +2,7 @@ import pytest
 
 from app import create_app, db
 from app.modules.auth.models import User
+from app.modules.profile.models import UserProfile
 
 
 @pytest.fixture(scope="session")
@@ -22,7 +23,13 @@ def test_client(test_app):
         with test_app.app_context():
             print("TESTING SUITE (2): Blueprints registrados:", test_app.blueprints)
 
+            # Disable foreign key checks for MySQL
+            db.session.execute(db.text("SET FOREIGN_KEY_CHECKS=0;"))
+            db.session.commit()
             db.drop_all()
+            db.session.execute(db.text("SET FOREIGN_KEY_CHECKS=1;"))
+            db.session.commit()
+
             db.create_all()
             """
             The test suite always includes the following user in order to avoid repetition
@@ -32,23 +39,43 @@ def test_client(test_app):
             db.session.add(user_test)
             db.session.commit()
 
+            # Create profile for test user
+            profile_test = UserProfile(user_id=user_test.id, name="Test", surname="User")
+            db.session.add(profile_test)
+            db.session.commit()
+
             print("Rutas registradas:")
             for rule in test_app.url_map.iter_rules():
                 print(rule)
             yield testing_client
 
             db.session.remove()
+            # Disable foreign key checks for MySQL
+            db.session.execute(db.text("SET FOREIGN_KEY_CHECKS=0;"))
+            db.session.commit()
             db.drop_all()
+            db.session.execute(db.text("SET FOREIGN_KEY_CHECKS=1;"))
+            db.session.commit()
 
 
 @pytest.fixture(scope="function")
 def clean_database():
     db.session.remove()
+    # Disable foreign key checks for MySQL
+    db.session.execute(db.text("SET FOREIGN_KEY_CHECKS=0;"))
+    db.session.commit()
     db.drop_all()
+    db.session.execute(db.text("SET FOREIGN_KEY_CHECKS=1;"))
+    db.session.commit()
     db.create_all()
     yield
     db.session.remove()
+    # Disable foreign key checks for MySQL
+    db.session.execute(db.text("SET FOREIGN_KEY_CHECKS=0;"))
+    db.session.commit()
     db.drop_all()
+    db.session.execute(db.text("SET FOREIGN_KEY_CHECKS=1;"))
+    db.session.commit()
     db.create_all()
 
 

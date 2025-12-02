@@ -4,6 +4,58 @@
 
 {% block head_extra %}
 <style>
+    /* CSV Table Styles */
+    #csvTable {
+        font-size: 0.9rem;
+        width: 100%;
+    }
+
+    #csvTable thead th {
+        background-color: #343a40;
+        color: white;
+        font-weight: 600;
+        padding: 12px 8px;
+        text-align: left;
+        border: 1px solid #dee2e6;
+    }
+
+    #csvTable tbody td {
+        padding: 10px 8px;
+        border: 1px solid #dee2e6;
+        vertical-align: middle;
+    }
+
+    #csvTable tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .modal-fullscreen .modal-body {
+        background-color: #f5f5f5;
+    }
+
+    /* Material Records Search Styles */
+    .material-record-item {
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .material-record-item[style*="display: none"] {
+        opacity: 0;
+    }
+
+    #materialSearchInput {
+        border-radius: 0;
+    }
+
+    .input-group-text {
+        background-color: #fff;
+        border-right: 0;
+    }
+
+    #materialSearchInput:focus {
+        border-color: #ced4da;
+        box-shadow: none;
+    }
+
     .recommendations-container {
         display: flex;
         justify-content: space-between;
@@ -404,23 +456,53 @@
                 <div class="row">
                     <div class="col-12 d-flex justify-content-between align-items-center">
                         <h4 style="margin-bottom: 0px">Material Records</h4>
-                        <h4 style="margin-bottom: 0px;"><span class="badge bg-dark">{{ total }}</span></h4>
+                        <div class="d-flex align-items-center gap-2">
+                            <h4 style="margin-bottom: 0px;"><span class="badge bg-dark" id="recordCount">{{ total }}</span></h4>
+                            {% if current_user.is_authenticated and current_user.id == dataset.user_id %}
+                            <a href="{{ url_for('dataset.add_material_record', dataset_id=dataset.id) }}" class="btn btn-sm btn-success" title="Add new record">
+                                <i data-feather="plus"></i> Add
+                            </a>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
 
+            <div class="list-group-item">
+                <div class="input-group">
+                    <span class="input-group-text"><i data-feather="search"></i></span>
+                    <input type="text" class="form-control" id="materialSearchInput" placeholder="Search by material name..." onkeyup="filterMaterials()">
+                    <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                        <i data-feather="x"></i> Clear
+                    </button>
+                </div>
+                <small class="text-muted mt-1 d-block" id="searchResultCount"></small>
+            </div>
+
             {% if records %}
                 {% for record in records %}
-                    <div class="list-group-item">
+                    <div class="list-group-item material-record-item" data-material-name="{{ record.material_name|lower }}">
                         <div class="row">
                             <div class="col-12">
-                                <div class="row mb-2">
-                                    <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
                                         <strong>{{ record.material_name }}</strong>
                                         {% if record.chemical_formula %}
                                         <span class="text-muted">({{ record.chemical_formula }})</span>
                                         {% endif %}
                                     </div>
+                                    {% if current_user.is_authenticated and current_user.id == dataset.user_id %}
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('dataset.edit_material_record', dataset_id=dataset.id, record_id=record.id) }}"
+                                           class="btn btn-outline-primary btn-sm" title="Edit record">
+                                            <i data-feather="edit-2" style="width: 14px; height: 14px;"></i>
+                                        </a>
+                                        <button type="button" onclick="deleteRecord({{ dataset.id }}, {{ record.id }})"
+                                           class="btn btn-outline-danger btn-sm" title="Delete record">
+                                            <i data-feather="trash-2" style="width: 14px; height: 14px;"></i>
+                                        </button>
+                                    </div>
+                                    {% endif %}
                                 </div>
 
                                 <div class="row">
@@ -508,20 +590,38 @@
 
 <!-- Modal for CSV Viewer -->
 <div class="modal fade" id="csvViewerModal" tabindex="-1" aria-labelledby="csvViewerModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl" style="height: 80vh;">
-        <div class="modal-content" style="height: 80vh;">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
             <div class="modal-header d-flex justify-content-between align-items-center">
-                <h5 class="modal-title" id="csvViewerModalLabel">CSV File View</h5>
                 <div>
+                    <h5 class="modal-title" id="csvViewerModalLabel">CSV File View</h5>
+                    <small class="text-muted" id="csvRecordCount"></small>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="downloadCSV()">
+                        <i data-feather="download"></i> Download CSV
+                    </button>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
             </div>
-            <div class="modal-body" style="overflow-y: auto;">
-                <pre id="csvContent" style="white-space: pre-wrap; background-color: #f5f5f5; padding: 20px; border-radius: 5px; border: 1px solid #ccc;"></pre>
+            <div class="modal-body" style="overflow: auto; padding: 0;">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover table-bordered mb-0" id="csvTable">
+                        <thead class="table-dark" style="position: sticky; top: 0; z-index: 10;">
+                            <tr id="csvHeaders"></tr>
+                        </thead>
+                        <tbody id="csvBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Hidden form for CSRF token -->
+<form id="csrf-form" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+</form>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -644,7 +744,7 @@
     }
 
     /**
-     * View CSV file content in modal
+     * View CSV file content in modal as a table
      */
     async function viewCSV() {
         const pathname = window.location.pathname;
@@ -660,12 +760,124 @@
                 return;
             }
 
-            document.getElementById('csvContent').textContent = data.content;
+            // Store data globally for download
+            window.csvData = data;
+
+            // Update record count
+            document.getElementById('csvRecordCount').textContent = `${data.total} records`;
+
+            // Create table headers
+            const headersRow = document.getElementById('csvHeaders');
+            headersRow.innerHTML = '';
+            data.headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                th.style.whiteSpace = 'nowrap';
+                headersRow.appendChild(th);
+            });
+
+            // Create table rows
+            const tbody = document.getElementById('csvBody');
+            tbody.innerHTML = '';
+            data.rows.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                data.headers.forEach(header => {
+                    const td = document.createElement('td');
+                    td.textContent = row[header] || '';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+
+            // Show modal
             const modal = new bootstrap.Modal(document.getElementById('csvViewerModal'));
             modal.show();
+
+            // Replace feather icons in modal
+            setTimeout(() => {
+                if (typeof feather !== 'undefined') {
+                    feather.replace();
+                }
+            }, 100);
         } catch (error) {
             console.error('Error loading CSV:', error);
             alert('Error loading CSV file');
+        }
+    }
+
+    /**
+     * Download CSV file
+     */
+    function downloadCSV() {
+        const pathname = window.location.pathname;
+        const pathParts = pathname.split("/");
+        const datasetId = pathParts[2];
+        window.location.href = `/dataset/download/${datasetId}`;
+    }
+
+    /**
+     * Filter material records by name
+     */
+    function filterMaterials() {
+        const searchInput = document.getElementById('materialSearchInput');
+        const filter = searchInput.value.toLowerCase().trim();
+        const records = document.querySelectorAll('.material-record-item');
+        let visibleCount = 0;
+
+        records.forEach(record => {
+            const materialName = record.getAttribute('data-material-name');
+            if (materialName.includes(filter)) {
+                record.style.display = '';
+                visibleCount++;
+            } else {
+                record.style.display = 'none';
+            }
+        });
+
+        // Update result count
+        const resultCountElement = document.getElementById('searchResultCount');
+        if (filter) {
+            resultCountElement.textContent = `Showing ${visibleCount} of {{ total }} records`;
+        } else {
+            resultCountElement.textContent = '';
+        }
+
+        // Replace feather icons after filtering
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    }
+
+    /**
+     * Clear search and show all records
+     */
+    function clearSearch() {
+        document.getElementById('materialSearchInput').value = '';
+        filterMaterials();
+    }
+
+    /**
+     * Delete a material record with confirmation
+     */
+    function deleteRecord(datasetId, recordId) {
+        if (confirm('Are you sure you want to delete this record? This action cannot be undone.')) {
+            // Create a form and submit it
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/materials/${datasetId}/records/${recordId}/delete`;
+
+            // Add CSRF token - get it from hidden form
+            const csrfInput = document.querySelector('#csrf-form input[name="csrf_token"]');
+            if (csrfInput && csrfInput.value) {
+                const newCsrfInput = document.createElement('input');
+                newCsrfInput.type = 'hidden';
+                newCsrfInput.name = 'csrf_token';
+                newCsrfInput.value = csrfInput.value;
+                form.appendChild(newCsrfInput);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
         }
     }
 </script>

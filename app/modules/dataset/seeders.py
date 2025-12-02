@@ -1,22 +1,21 @@
+import csv
 import os
-import shutil
-from datetime import datetime, timezone
-
-from dotenv import load_dotenv
+import random
+import uuid
+from datetime import datetime, timedelta, timezone
 
 from app.modules.auth.models import User
 from app.modules.dataset.models import (
     Author,
-    DataSet,
     DataSource,
+    DSDownloadRecord,
     DSMetaData,
     DSMetrics,
+    DSViewRecord,
     MaterialRecord,
     MaterialsDataset,
     PublicationType,
 )
-from app.modules.featuremodel.models import FeatureModel, FMMetaData
-from app.modules.hubfile.models import Hubfile
 from core.seeders.BaseSeeder import BaseSeeder
 
 
@@ -35,102 +34,6 @@ class DataSetSeeder(BaseSeeder):
         # Create DSMetrics instance
         ds_metrics = DSMetrics(number_of_models="5", number_of_features="50")
         seeded_ds_metrics = self.seed([ds_metrics])[0]
-
-        # Create DSMetaData instances
-        ds_meta_data_list = [
-            DSMetaData(
-                deposition_id=1 + i,
-                title=f"Sample dataset {i+1}",
-                description=f"Description for dataset {i+1}",
-                publication_type=PublicationType.DATA_MANAGEMENT_PLAN,
-                publication_doi=f"10.1234/dataset{i+1}",
-                dataset_doi=f"10.1234/dataset{i+1}",
-                tags="tag1, tag2",
-                ds_metrics_id=seeded_ds_metrics.id,
-            )
-            for i in range(4)
-        ]
-        seeded_ds_meta_data = self.seed(ds_meta_data_list)
-
-        # Create Author instances and associate with DSMetaData
-        authors = [
-            Author(
-                name=f"Author {i+1}",
-                affiliation=f"Affiliation {i+1}",
-                orcid=f"0000-0000-0000-000{i}",
-                ds_meta_data_id=seeded_ds_meta_data[i % 4].id,
-            )
-            for i in range(4)
-        ]
-        self.seed(authors)
-
-        # Create DataSet instances
-        datasets = [
-            DataSet(
-                user_id=user1.id if i % 2 == 0 else user2.id,
-                ds_meta_data_id=seeded_ds_meta_data[i].id,
-                created_at=datetime.now(timezone.utc),
-            )
-            for i in range(4)
-        ]
-        seeded_datasets = self.seed(datasets)
-
-        # Assume there are 12 UVL files, create corresponding FMMetaData and FeatureModel
-        fm_meta_data_list = [
-            FMMetaData(
-                uvl_filename=f"file{i+1}.uvl",
-                title=f"Feature Model {i+1}",
-                description=f"Description for feature model {i+1}",
-                publication_type=PublicationType.SOFTWARE_DOCUMENTATION,
-                publication_doi=f"10.1234/fm{i+1}",
-                tags="tag1, tag2",
-                uvl_version="1.0",
-            )
-            for i in range(12)
-        ]
-        seeded_fm_meta_data = self.seed(fm_meta_data_list)
-
-        # Create Author instances and associate with FMMetaData
-        fm_authors = [
-            Author(
-                name=f"Author {i+5}",
-                affiliation=f"Affiliation {i+5}",
-                orcid=f"0000-0000-0000-000{i+5}",
-                fm_meta_data_id=seeded_fm_meta_data[i].id,
-            )
-            for i in range(12)
-        ]
-        self.seed(fm_authors)
-
-        feature_models = [
-            FeatureModel(data_set_id=seeded_datasets[i // 3].id, fm_meta_data_id=seeded_fm_meta_data[i].id)
-            for i in range(12)
-        ]
-        seeded_feature_models = self.seed(feature_models)
-
-        # Create files, associate them with FeatureModels and copy files
-        load_dotenv()
-        working_dir = os.getenv("WORKING_DIR", "")
-        src_folder = os.path.join(working_dir, "app", "modules", "dataset", "uvl_examples")
-        for i in range(12):
-            file_name = f"file{i+1}.uvl"
-            feature_model = seeded_feature_models[i]
-            dataset = next(ds for ds in seeded_datasets if ds.id == feature_model.data_set_id)
-            user_id = dataset.user_id
-
-            dest_folder = os.path.join(working_dir, "uploads", f"user_{user_id}", f"dataset_{dataset.id}")
-            os.makedirs(dest_folder, exist_ok=True)
-            shutil.copy(os.path.join(src_folder, file_name), dest_folder)
-
-            file_path = os.path.join(dest_folder, file_name)
-
-            uvl_file = Hubfile(
-                name=file_name,
-                checksum=f"checksum{i+1}",
-                size=os.path.getsize(file_path),
-                feature_model_id=feature_model.id,
-            )
-            self.seed([uvl_file])
 
         # Create MaterialsDataset instances - 20 datasets
         materials_dataset_info = [
@@ -259,7 +162,7 @@ class DataSetSeeder(BaseSeeder):
         materials_ds_meta_data_list = [
             DSMetaData(
                 deposition_id=100 + i,
-                title=f"Materials Dataset {i+1}: {info[0]}",
+                title=info[0],
                 description=info[1],
                 publication_type=info[3],
                 publication_doi=f"10.1234/materials{i+1:02d}",
@@ -307,11 +210,12 @@ class DataSetSeeder(BaseSeeder):
         self.seed(materials_authors)
 
         # Create MaterialsDataset instances - 20 datasets alternating between user1 and user2
+        # csv_file_path will be set after generating CSV files
         materials_datasets = [
             MaterialsDataset(
                 user_id=user1.id if i % 2 == 0 else user2.id,
                 ds_meta_data_id=seeded_materials_meta_data[i].id,
-                csv_file_path=f"/uploads/materials_dataset_{i+1}.csv",
+                csv_file_path=None,
                 created_at=datetime.now(timezone.utc),
             )
             for i in range(20)
@@ -1374,3 +1278,107 @@ class DataSetSeeder(BaseSeeder):
                 all_records.append(record)
 
         self.seed(all_records)
+
+        # Generate CSV files for each MaterialsDataset
+        csv_dir = "uploads/materials_csv"
+        os.makedirs(csv_dir, exist_ok=True)
+
+        for i, dataset in enumerate(seeded_materials_datasets):
+            csv_filename = f"materials_dataset_{i+1}.csv"
+            csv_path = os.path.join(csv_dir, csv_filename)
+
+            # Get records for this dataset
+            dataset_records = materials_records_data[i]
+
+            # Write CSV file
+            with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
+                fieldnames = [
+                    "material_name",
+                    "chemical_formula",
+                    "structure_type",
+                    "composition_method",
+                    "property_name",
+                    "property_value",
+                    "property_unit",
+                    "temperature",
+                    "pressure",
+                    "data_source",
+                    "uncertainty",
+                    "description",
+                ]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+
+                for record_data in dataset_records:
+                    writer.writerow(
+                        {
+                            "material_name": record_data[0],
+                            "chemical_formula": record_data[1],
+                            "structure_type": record_data[2],
+                            "composition_method": record_data[3],
+                            "property_name": record_data[4],
+                            "property_value": record_data[5],
+                            "property_unit": record_data[6],
+                            "temperature": record_data[7],
+                            "pressure": record_data[8],
+                            "data_source": record_data[9].value if record_data[9] else "",
+                            "uncertainty": record_data[10] if record_data[10] is not None else "",
+                            "description": record_data[11],
+                        }
+                    )
+
+            # Update dataset csv_file_path
+            dataset.csv_file_path = csv_path
+
+        # Commit changes to database
+        from app import db
+
+        db.session.commit()
+
+        # Generate random download and view records for each MaterialsDataset
+        print("Generating random download and view records for MaterialsDatasets...")
+
+        all_download_records = []
+        all_view_records = []
+
+        for dataset in seeded_materials_datasets:
+            # Random number of downloads (between 5 and 50)
+            num_downloads = random.randint(5, 50)
+
+            # Generate downloads over the last 60 days
+            for _ in range(num_downloads):
+                days_ago = random.randint(0, 60)
+                download_date = datetime.now(timezone.utc) - timedelta(days=days_ago)
+
+                download_record = DSDownloadRecord(
+                    user_id=None if random.random() < 0.3 else random.choice([user1.id, user2.id]),
+                    dataset_id=dataset.id,
+                    download_date=download_date,
+                    download_cookie=str(uuid.uuid4()),
+                )
+                all_download_records.append(download_record)
+
+            # Random number of views (between 10 and 200)
+            num_views = random.randint(10, 200)
+
+            # Generate views over the last 60 days
+            for _ in range(num_views):
+                days_ago = random.randint(0, 60)
+                view_date = datetime.now(timezone.utc) - timedelta(days=days_ago)
+
+                view_record = DSViewRecord(
+                    user_id=None if random.random() < 0.3 else random.choice([user1.id, user2.id]),
+                    dataset_id=dataset.id,
+                    view_date=view_date,
+                    view_cookie=str(uuid.uuid4()),
+                )
+                all_view_records.append(view_record)
+
+        # Seed all download and view records
+        self.seed(all_download_records)
+        self.seed(all_view_records)
+
+        print(
+            f"Generated {len(all_download_records)} download records and "
+            f"{len(all_view_records)} view records for MaterialsDatasets"
+        )

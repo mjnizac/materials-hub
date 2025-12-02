@@ -21,7 +21,6 @@ Desarrollado por **DiversoLab** en la Universidad de Sevilla.
 ## ✨ Características
 
 - 📊 **Gestión de Datasets de Materiales**: Almacena datasets con propiedades de materiales (CSV)
-- 🔬 **Datasets UVL**: Soporte para modelos de características en formato UVL
 - 🔍 **Sistema de Recomendaciones**: Descubre datasets relacionados basados en tags, autores y propiedades
 - 👥 **Gestión de Usuarios**: Sistema de autenticación y perfiles de usuario
 - 🌐 **Integración Zenodo**: Publicación de datasets con DOI
@@ -213,20 +212,40 @@ rosemary db:console
 ### Testing
 
 ```bash
-# Ejecutar todos los tests
-rosemary test
+# Ejecutar todos los tests (unit + integration)
+pytest -v
+
+# Solo tests unitarios
+pytest -m unit -v
+
+# Solo tests de integración
+pytest -m integration -v
 
 # Tests de un módulo específico
-rosemary test dataset
+pytest app/modules/dataset/tests/ -v
 
-# Tests con cobertura
-rosemary coverage
+# Tests con reporte de cobertura
+pytest --cov=app --cov-report=html --cov-report=term
 
-# Cobertura con reporte HTML
-rosemary coverage --html
+# Ver reporte HTML de cobertura (después de ejecutar el comando anterior)
+# El reporte se genera en htmlcov/index.html
+```
 
-# Tests de Selenium
-rosemary selenium
+**Estructura de tests por módulo:**
+- Cada módulo tiene su carpeta `tests/` con:
+  - `test_unit.py` - Tests unitarios (servicios, modelos, repositorios)
+  - `test_integration.py` - Tests de integración (rutas, API)
+  - `locustfile.py` - Tests de carga con Locust
+
+**Ejecutar tests de carga (Locust):**
+```bash
+# Todos los tests de carga
+locust --host=http://localhost:5000
+
+# Tests de un módulo específico
+locust -f app/modules/dataset/tests/locustfile.py --host=http://localhost:5000
+
+# Interfaz web disponible en: http://localhost:8089
 ```
 
 ### Desarrollo
@@ -332,7 +351,7 @@ materials-hub/
 
 1. Crea una rama para tu feature: `git checkout -b feature/mi-feature`
 2. Haz tus cambios y commits: `git commit -m "feat: descripción"`
-3. Ejecuta los tests: `rosemary test`
+3. Ejecuta los tests: `pytest -v`
 4. Ejecuta el linter: `rosemary linter:fix`
 5. Push a tu rama: `git push origin feature/mi-feature`
 6. Crea un Pull Request

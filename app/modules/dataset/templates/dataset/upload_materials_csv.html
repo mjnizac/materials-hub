@@ -49,9 +49,13 @@
                             <button type="submit" class="btn btn-primary" id="uploadBtn">
                                 <i data-feather="upload"></i> Upload CSV
                             </button>
-                            <a href="{{ url_for('dataset.view_materials_dataset', dataset_id=dataset.id) }}" class="btn btn-secondary">
-                                <i data-feather="arrow-left"></i> Cancel
-                            </a>
+                            <button type="button" class="btn btn-danger" onclick="cancelAndDelete()" id="cancelBtn">
+                                <i data-feather="x"></i> Cancel and Delete Dataset
+                            </button>
+                        </div>
+
+                        <div class="alert alert-warning" role="alert">
+                            <i data-feather="alert-triangle"></i> <strong>Important:</strong> You must upload a CSV file to complete the dataset creation. If you cancel without uploading a CSV, the dataset will be permanently deleted.
                         </div>
                     </form>
 
@@ -84,7 +88,42 @@ Silicon Carbide,SiC,Hexagonal,Hot Pressing,youngs_modulus,410,GPa,298,101325,com
         </div>
     </div>
 
+    <!-- Hidden form for CSRF token -->
+    <form id="csrf-form" style="display: none;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+    </form>
+
     <script>
+        /**
+         * Cancel and delete the dataset if no CSV has been uploaded
+         */
+        function cancelAndDelete() {
+            const confirmation = confirm(
+                'WARNING: This will permanently delete the dataset since no CSV file has been uploaded yet.\n\n' +
+                'Are you sure you want to cancel and delete this dataset?'
+            );
+
+            if (confirmation) {
+                // Create a form and submit it
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/materials/{{ dataset.id }}/delete';
+
+                // Add CSRF token - get it from hidden form
+                const csrfInput = document.querySelector('#csrf-form input[name="csrf_token"]');
+                if (csrfInput && csrfInput.value) {
+                    const newCsrfInput = document.createElement('input');
+                    newCsrfInput.type = 'hidden';
+                    newCsrfInput.name = 'csrf_token';
+                    newCsrfInput.value = csrfInput.value;
+                    form.appendChild(newCsrfInput);
+                }
+
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
         document.getElementById('csvUploadForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
