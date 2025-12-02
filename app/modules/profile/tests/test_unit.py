@@ -1,6 +1,7 @@
 """
 Unit tests for profile module.
 """
+
 import pytest
 
 from app.modules.conftest import login, logout
@@ -33,12 +34,13 @@ def test_user_profile_service_initialization(test_client):
 @pytest.mark.unit
 def test_user_profile_service_update_profile_success(test_client):
     """Test UserProfileService.update_profile() with valid form"""
+    from werkzeug.datastructures import ImmutableMultiDict
+
     from app import db
     from app.modules.auth.models import User
     from app.modules.profile.forms import UserProfileForm
     from app.modules.profile.models import UserProfile
     from app.modules.profile.services import UserProfileService
-    from werkzeug.datastructures import ImmutableMultiDict
 
     user = User(email="test_profile_update@example.com", password="test123")
     db.session.add(user)

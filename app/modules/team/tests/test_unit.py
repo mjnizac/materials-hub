@@ -1,6 +1,7 @@
 """
 Unit tests for team module.
 """
+
 import pytest
 
 

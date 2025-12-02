@@ -1,8 +1,10 @@
 """
 Unit tests for public module.
 """
-import pytest
+
 from unittest.mock import Mock, patch
+
+import pytest
 
 
 @pytest.mark.unit
@@ -10,9 +12,11 @@ def test_index_page_loads(test_client):
     """
     Test that the index page loads successfully and returns 200 status code.
     """
-    with patch("app.modules.public.routes.MaterialsDatasetRepository") as mock_materials_repo, patch(
-        "app.modules.public.routes.DSDownloadRecordRepository"
-    ) as mock_download_repo, patch("app.modules.public.routes.DSViewRecordRepository") as mock_view_repo:
+    with (
+        patch("app.modules.public.routes.MaterialsDatasetRepository") as mock_materials_repo,
+        patch("app.modules.public.routes.DSDownloadRecordRepository") as mock_download_repo,
+        patch("app.modules.public.routes.DSViewRecordRepository") as mock_view_repo,
+    ):
         # Mock repository methods
         mock_materials_repo_instance = Mock()
         mock_materials_repo_instance.count_synchronized.return_value = 10
@@ -37,9 +41,11 @@ def test_index_page_calls_repositories(test_client):
     """
     Test that the index page calls all required repositories.
     """
-    with patch("app.modules.public.routes.MaterialsDatasetRepository") as mock_materials_repo, patch(
-        "app.modules.public.routes.DSDownloadRecordRepository"
-    ) as mock_download_repo, patch("app.modules.public.routes.DSViewRecordRepository") as mock_view_repo:
+    with (
+        patch("app.modules.public.routes.MaterialsDatasetRepository") as mock_materials_repo,
+        patch("app.modules.public.routes.DSDownloadRecordRepository") as mock_download_repo,
+        patch("app.modules.public.routes.DSViewRecordRepository") as mock_view_repo,
+    ):
         # Mock repository methods
         mock_materials_repo_instance = Mock()
         mock_materials_repo_instance.count_synchronized.return_value = 10

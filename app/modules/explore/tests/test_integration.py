@@ -1,6 +1,7 @@
 """
 Integration tests for explore module.
 """
+
 import pytest
 
 from app import db

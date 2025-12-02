@@ -16,6 +16,7 @@ from app.modules.dataset.repositories import (
     DSMetaDataRepository,
     DSViewRecordRepository,
 )
+
 # UVL removed: from app.modules.featuremodel.repositories
 from core.services.BaseService import BaseService
 
@@ -415,8 +416,12 @@ class MaterialsDatasetService:
     ]
 
     def __init__(self):
-        from app.modules.dataset.repositories import MaterialRecordRepository, MaterialsDatasetRepository
-        from app.modules.dataset.repositories import AuthorRepository, DSMetaDataRepository
+        from app.modules.dataset.repositories import (
+            AuthorRepository,
+            DSMetaDataRepository,
+            MaterialRecordRepository,
+            MaterialsDatasetRepository,
+        )
 
         self.materials_dataset_repository = MaterialsDatasetRepository()
         self.material_record_repository = MaterialRecordRepository()

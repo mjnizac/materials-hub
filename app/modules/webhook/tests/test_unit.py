@@ -1,13 +1,14 @@
 """
 Unit tests for webhook module.
 """
+
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
-import docker
 import pytest
 from wtforms import SubmitField
 
+import docker
 from app import db
 from app.modules.webhook.forms import WebhookForm
 from app.modules.webhook.models import Webhook

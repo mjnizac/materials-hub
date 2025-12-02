@@ -1,3 +1,1 @@
 material_name,chemical_formula,structure_type,composition_method,property_name,property_value,property_unit,temperature,pressure,data_source,uncertainty,description
-Alumina,Al2O3,Corundum,Sintering,density,3.95,g/cm³,298,101325,experimental,0.02,High-purity alumina ceramic
-Alumina,Al2O3,Corundum,Sintering,hardness,9.0,Mohs,298,101325,literature,,Mohs hardness scale
