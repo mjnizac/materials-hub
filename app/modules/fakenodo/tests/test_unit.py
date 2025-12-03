@@ -269,9 +269,7 @@ def test_fakenodo_service_create_deposition_exception(test_client):
     mock_dataset.ds_meta_data.authors = []
 
     # Mock repository to raise exception
-    with patch.object(
-        service.deposition_repository, "create_new_deposition", side_effect=Exception("Database error")
-    ):
+    with patch.object(service.deposition_repository, "create_new_deposition", side_effect=Exception("Database error")):
         with pytest.raises(Exception, match="Failed to create local deposition: Database error"):
             service.create_new_deposition(mock_dataset)
 
