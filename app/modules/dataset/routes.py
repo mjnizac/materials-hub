@@ -18,7 +18,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
-
+from sqlalchemy.exc import IntegrityError
 from app.modules.dataset import dataset_bp
 from app.modules.dataset.forms import DataSetForm, MaterialRecordForm
 from app.modules.dataset.models import DSDownloadRecord, DSViewRecord
@@ -428,7 +428,16 @@ def view_materials_dataset(dataset_id):
             view_cookie=view_cookie,
         )
         db.session.add(view_record)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError as e:
+            # IMPORTANTE: no romper la vista, solo avisar y hacer rollback
+            db.session.rollback()
+            logger.warning(
+                "No se pudo guardar DSViewRecord (FK contra data_set). "
+                "Probablemente es un MaterialsDataset sin entrada en data_set. "
+                f"dataset_id={dataset_id}, error={e}"
+            )
 
     # Get pagination parameters
     page = request.args.get("page", 1, type=int)
