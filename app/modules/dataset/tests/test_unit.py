@@ -112,7 +112,9 @@ def test_materials_dataset_repository_count_synchronized(test_client):
     db.session.commit()
 
     # Create unsynchronized dataset (without DOI)
-    metadata2 = DSMetaData(title="Dataset 2", description="Test", dataset_doi=None, publication_type=PublicationType.NONE)
+    metadata2 = DSMetaData(
+        title="Dataset 2", description="Test", dataset_doi=None, publication_type=PublicationType.NONE
+    )
     db.session.add(metadata2)
     db.session.commit()
 

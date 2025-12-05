@@ -49,6 +49,7 @@ class DSViewRecordRepository(BaseRepository):
         max_id = self.model.query.with_entities(func.max(self.model.id)).scalar()
         return max_id if max_id is not None else 0
 
+    
     def the_record_exists(self, dataset: MaterialsDataset, user_cookie: str):
         return self.model.query.filter_by(
             user_id=current_user.id if current_user.is_authenticated else None,
@@ -56,6 +57,7 @@ class DSViewRecordRepository(BaseRepository):
             view_cookie=user_cookie,
         ).first()
 
+    
     def create_new_record(self, dataset: MaterialsDataset, user_cookie: str) -> DSViewRecord:
         return self.create(
             user_id=current_user.id if current_user.is_authenticated else None,
@@ -121,6 +123,20 @@ class MaterialsDatasetRepository(BaseRepository):
             .all()
         )
 
+    def count_synchronized(self) -> int:
+        """Count synchronized materials datasets (with DOI)"""
+        return self.model.query.join(DSMetaData).filter(DSMetaData.dataset_doi.isnot(None)).count()
+
+    def get_synchronized_latest(self, limit: int = 5):
+        """Get latest synchronized materials datasets (with DOI)"""
+        return (
+            self.model.query.join(DSMetaData)
+            .filter(DSMetaData.dataset_doi.isnot(None))
+            .order_by(desc(self.model.created_at))
+            .limit(limit)
+            .all()
+        )
+
     def get_all(self):
         """Get all materials datasets ordered by creation date (newest first)"""
         return self.model.query.order_by(desc(self.model.created_at)).all()
@@ -130,9 +146,6 @@ class MaterialsDatasetRepository(BaseRepository):
         Top global por descargas en los últimos 'days' días para MaterialsDataset.
         Incluye datasets con 0 descargas en el rango (outer join).
         """
-        from datetime import datetime, timedelta, timezone
-        from sqlalchemy import and_, func
-
         from app.modules.dataset.models import DSDownloadRecord, DSMetaData, MaterialsDataset
 
         since = datetime.now(timezone.utc) - timedelta(days=days)
@@ -164,9 +177,6 @@ class MaterialsDatasetRepository(BaseRepository):
         Top global por vistas en los últimos 'days' días para MaterialsDataset.
         Incluye datasets con 0 vistas en el rango (outer join).
         """
-        from datetime import datetime, timedelta, timezone
-        from sqlalchemy import and_, func
-
         from app.modules.dataset.models import DSMetaData, DSViewRecord, MaterialsDataset
 
         since = datetime.now(timezone.utc) - timedelta(days=days)
