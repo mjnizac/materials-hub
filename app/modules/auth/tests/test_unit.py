@@ -102,3 +102,100 @@ def test_service_create_with_profile_fail_no_password(clean_database):
 
     assert UserRepository().count() == 0
     assert UserProfileRepository().count() == 0
+
+
+@pytest.mark.unit
+def test_service_create_with_profile_fail_no_name(clean_database):
+    """Test AuthenticationService.create_with_profile() fails without name"""
+    data = {"name": "", "surname": "Foo", "email": "test@example.com", "password": "test1234"}
+
+    with pytest.raises(ValueError, match="Name is required."):
+        AuthenticationService().create_with_profile(**data)
+
+    assert UserRepository().count() == 0
+    assert UserProfileRepository().count() == 0
+
+
+@pytest.mark.unit
+def test_service_create_with_profile_fail_no_surname(clean_database):
+    """Test AuthenticationService.create_with_profile() fails without surname"""
+    data = {"name": "Test", "surname": "", "email": "test@example.com", "password": "test1234"}
+
+    with pytest.raises(ValueError, match="Surname is required."):
+        AuthenticationService().create_with_profile(**data)
+
+    assert UserRepository().count() == 0
+    assert UserProfileRepository().count() == 0
+
+
+@pytest.mark.unit
+def test_service_is_email_available_true(clean_database):
+    """Test AuthenticationService.is_email_available() returns True for unused email"""
+    service = AuthenticationService()
+
+    assert service.is_email_available("unused@example.com") is True
+
+
+@pytest.mark.unit
+def test_service_is_email_available_false(test_client):
+    """Test AuthenticationService.is_email_available() returns False for used email"""
+    from app.modules.auth.models import User
+
+    service = AuthenticationService()
+
+    # Create a user explicitly for this test
+    user = User(email="used_email@example.com", password="test1234")
+    service.repository.session.add(user)
+    service.repository.session.commit()
+
+    assert service.is_email_available("used_email@example.com") is False
+
+
+@pytest.mark.unit
+def test_service_login_method_success(test_client):
+    """Test AuthenticationService.login() method directly"""
+    from app.modules.auth.models import User
+
+    service = AuthenticationService()
+
+    # Create a test user
+    user = User(email="login_test@example.com", password="testpass123")
+    service.repository.session.add(user)
+    service.repository.session.commit()
+
+    # Test login
+    result = service.login("login_test@example.com", "testpass123", remember=False)
+    assert result is True
+
+
+@pytest.mark.unit
+def test_service_login_method_fail_bad_email(test_client):
+    """Test AuthenticationService.login() fails with wrong email"""
+    service = AuthenticationService()
+
+    result = service.login("nonexistent@example.com", "anypassword")
+    assert result is False
+
+
+@pytest.mark.unit
+def test_service_login_method_fail_bad_password(test_client):
+    """Test AuthenticationService.login() fails with wrong password"""
+    service = AuthenticationService()
+
+    # test@example.com exists from fixtures
+    result = service.login("test@example.com", "wrongpassword")
+    assert result is False
+
+
+@pytest.mark.unit
+def test_service_temp_folder_by_user(test_client):
+    """Test AuthenticationService.temp_folder_by_user()"""
+    from app.modules.auth.models import User
+
+    service = AuthenticationService()
+    user = User(id=123, email="test@example.com", password="test")
+
+    folder = service.temp_folder_by_user(user)
+
+    assert "temp" in folder
+    assert "123" in folder

@@ -186,3 +186,55 @@ def test_webhook_service_restart_container():
         assert call_args[0] == "/bin/sh"
         assert "/app/scripts/restart_container.sh" in call_args
         assert "container_123" in call_args
+
+
+@pytest.mark.unit
+def test_webhook_service_execute_host_command_success():
+    """
+    Test WebhookService execute_host_command with successful command.
+    """
+    service = WebhookService()
+
+    with patch("app.modules.webhook.services.subprocess.run") as mock_run:
+        mock_run.return_value = None  # Successful execution
+
+        service.execute_host_command("test_volume", ["python:3.9", "python", "-c", "print('test')"])
+
+        mock_run.assert_called_once()
+        call_args = mock_run.call_args[0][0]
+        assert "docker" in call_args
+        assert "run" in call_args
+        assert "test_volume:/app" in call_args
+
+
+@pytest.mark.unit
+def test_webhook_service_execute_host_command_failure():
+    """
+    Test WebhookService execute_host_command with failed command.
+    """
+    from subprocess import CalledProcessError
+
+    service = WebhookService()
+
+    with patch("app.modules.webhook.services.subprocess.run") as mock_run:
+        mock_run.side_effect = CalledProcessError(1, "command")
+
+        with pytest.raises(Exception):  # abort raises an exception
+            service.execute_host_command("test_volume", ["python:3.9", "python", "-c", "exit(1)"])
+
+
+@pytest.mark.unit
+@patch("app.modules.webhook.services.client")
+def test_webhook_service_get_web_container_success(mock_client):
+    """
+    Test WebhookService get_web_container when container is found.
+    """
+    service = WebhookService()
+    mock_container = Mock()
+    mock_container.id = "web_app_container"
+    mock_client.containers.get.return_value = mock_container
+
+    result = service.get_web_container()
+
+    assert result == mock_container
+    mock_client.containers.get.assert_called_once_with("web_app_container")

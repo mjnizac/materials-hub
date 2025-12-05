@@ -1,20 +1,20 @@
 # ----------------------------------------------------------------------------
-# Performance Tests Workflow
-# This workflow runs Locust load tests to verify application performance.
-# It runs on main and develop branches to catch performance regressions.
+# Workflow de Tests de Carga
+# Este workflow ejecuta tests de carga con Locust para verificar el rendimiento.
+# Se ejecuta en todas las ramas para detectar regresiones de rendimiento.
 # ----------------------------------------------------------------------------
 
-name: Performance Tests
+name: Tests de Carga (Locust)
 
 on:
   push:
-    branches: [main, develop]
 
 jobs:
-  locust:
+  tests-rendimiento:
+    name: Ejecutar tests de carga con Locust
     runs-on: ubuntu-24.04
 
-    # Global environment variables
+    # Variables de entorno globales
     env:
       MARIADB_ROOT_PASSWORD: uvlhub_root_password
       MARIADB_DATABASE: uvlhubdb_test
@@ -29,7 +29,7 @@ jobs:
       SECRET_KEY: test-secret-key-for-ci
 
     services:
-      # MariaDB service container
+      # Contenedor de servicio MariaDB
       mariadb:
         image: mariadb:12.0.2
         env:
@@ -47,97 +47,97 @@ jobs:
 
     steps:
 
-      # Step 1: Checkout the repository code
-      - name: Checkout
+      # Paso 1: Obtener el código del repositorio
+      - name: Obtener código
         uses: actions/checkout@v5
 
-      # Step 2: Set up Python environment (version 3.12)
-      - name: Set up Python
+      # Paso 2: Configurar entorno Python (versión 3.12)
+      - name: Configurar Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
 
-      # Step 3: Remove local editable mode for rosemary dependency
-      - name: Delete rosemary editable mode
+      # Paso 3: Eliminar modo editable local para dependencia rosemary
+      - name: Eliminar rosemary en modo editable
         run: sed -i '/rosemary @ file:\/\/\/app/d' requirements.txt
 
-      # Step 4: Install Python dependencies
-      - name: Install dependencies
+      # Paso 4: Instalar dependencias de Python
+      - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -e .
 
-      # Step 5: Initialize database
-      - name: Setup database
+      # Paso 5: Inicializar base de datos
+      - name: Configurar base de datos
         run: |
           rosemary db:upgrade
           rosemary db:seed
 
-      # Step 6: Start Flask application in background
-      - name: Start Flask application
+      # Paso 6: Iniciar aplicación Flask en segundo plano
+      - name: Iniciar aplicación Flask
         run: |
           flask run --host=0.0.0.0 --port=5000 &
           echo $! > flask.pid
           sleep 10
 
-      # Step 7: Verify application is running
-      - name: Health check
+      # Paso 7: Verificar que la aplicación está funcionando
+      - name: Verificación de salud
         run: |
           curl -f http://localhost:5000/ || exit 1
-          echo "Application is running!"
+          echo "¡Aplicación funcionando correctamente!"
 
-      # Step 8: Create reports directory
-      - name: Create reports directory
+      # Paso 8: Crear directorio de reportes
+      - name: Crear directorio de reportes
         run: mkdir -p reports
 
-      # Step 9: Run Locust performance tests (headless mode)
-      - name: Run Locust load tests
+      # Paso 9: Ejecutar tests de rendimiento con Locust (modo headless)
+      - name: Ejecutar tests de carga con Locust
         run: |
           locust --host=http://localhost:5000 \
                  --users 50 \
                  --spawn-rate 5 \
                  --run-time 60s \
                  --headless \
-                 --html reports/locust_report.html \
-                 --csv reports/locust_stats \
+                 --html reports/reporte_locust.html \
+                 --csv reports/estadisticas_locust \
                  --exit-code-on-error 0
         continue-on-error: true
 
-      # Step 10: Upload Locust HTML report
-      - name: Upload Locust HTML report
+      # Paso 10: Subir reporte HTML de Locust
+      - name: Subir reporte HTML de Locust
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: locust-performance-report-${{ github.sha }}
+          name: reporte-carga-locust-${{ github.sha }}
           path: reports/
           retention-days: 30
 
-      # Step 11: Generate performance summary
-      - name: Performance Summary
+      # Paso 11: Generar resumen de rendimiento
+      - name: Resumen de tests de carga
         if: always()
         run: |
-          echo "## Performance Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Resultados de Tests de Carga (Locust)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Test Configuration" >> $GITHUB_STEP_SUMMARY
-          echo "- Users: 50" >> $GITHUB_STEP_SUMMARY
-          echo "- Spawn Rate: 5 users/s" >> $GITHUB_STEP_SUMMARY
-          echo "- Duration: 60s" >> $GITHUB_STEP_SUMMARY
+          echo "### Configuración de Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- Usuarios simulados: 50" >> $GITHUB_STEP_SUMMARY
+          echo "- Tasa de aparición: 5 usuarios/s" >> $GITHUB_STEP_SUMMARY
+          echo "- Duración: 60s" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ -f reports/locust_stats_stats.csv ]; then
-            echo "### Results Summary" >> $GITHUB_STEP_SUMMARY
+          if [ -f reports/estadisticas_locust_stats.csv ]; then
+            echo "### Resumen de Resultados" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            head -n 10 reports/locust_stats_stats.csv >> $GITHUB_STEP_SUMMARY
+            head -n 10 reports/estadisticas_locust_stats.csv >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📊 [Download full HTML report](../artifacts)" >> $GITHUB_STEP_SUMMARY
+          echo "📊 [Descargar reporte HTML completo](../artifacts)" >> $GITHUB_STEP_SUMMARY
 
-      # Step 12: Stop Flask application
-      - name: Stop Flask application
+      # Paso 12: Detener aplicación Flask
+      - name: Detener aplicación Flask
         if: always()
         run: |
           if [ -f flask.pid ]; then

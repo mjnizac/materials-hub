@@ -61,3 +61,34 @@ def test_user_profile_service_update_profile_success(test_client):
     assert updated_profile is not None
     assert updated_profile.name == "New Name"
     assert updated_profile.surname == "New Surname"
+
+
+@pytest.mark.unit
+def test_user_profile_service_update_profile_invalid_form(test_client):
+    """Test UserProfileService.update_profile() with invalid form"""
+    from werkzeug.datastructures import ImmutableMultiDict
+
+    from app import db
+    from app.modules.auth.models import User
+    from app.modules.profile.forms import UserProfileForm
+    from app.modules.profile.models import UserProfile
+    from app.modules.profile.services import UserProfileService
+
+    user = User(email="test_profile_invalid@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    profile = UserProfile(user_id=user.id, name="Original Name", surname="Original Surname")
+    db.session.add(profile)
+    db.session.commit()
+
+    # Create invalid form data (empty name)
+    form_data = ImmutableMultiDict([("name", ""), ("surname", "New Surname")])
+    form = UserProfileForm(form_data)
+
+    service = UserProfileService()
+    updated_profile, errors = service.update_profile(profile.id, form)
+
+    assert updated_profile is None
+    assert errors is not None
+    assert "name" in errors

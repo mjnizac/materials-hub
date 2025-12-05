@@ -36,6 +36,7 @@ from app.modules.dataset.services import (
     DSDownloadRecordService,
     DSMetaDataService,
     DSViewRecordService,
+    MaterialsDatasetService,
     SizeService,
     calculate_checksum_and_size,
 )
@@ -963,3 +964,1305 @@ def test_calculate_checksum_and_size(test_client):
         assert size > 0
     finally:
         os.unlink(temp_path)
+
+
+# ============================================================================
+# Tests for DSMetaDataService
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_ds_metadata_service_update(test_client):
+    """Test DSMetaDataService.update() method"""
+    metadata = DSMetaData(title="Original Title", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata)
+    db.session.commit()
+
+    service = DSMetaDataService()
+    updated = service.update(metadata.id, title="Updated Title", description="Updated description")
+
+    assert updated is not None
+    assert updated.title == "Updated Title"
+    assert updated.description == "Updated description"
+
+
+# ============================================================================
+# Tests for DSViewRecordService
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_ds_view_record_service_the_record_exists_true(test_client):
+    """Test DSViewRecordService.the_record_exists() returns True"""
+    from unittest.mock import Mock, patch
+
+    user = User(email="test_record_exists_tru@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    metadata = DSMetaData(title="Test", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+    db.session.add(dataset)
+    db.session.commit()
+
+    record = MaterialRecord(
+        materials_dataset_id=dataset.id, material_name="Silicon", property_name="density", property_value="100"
+    )
+    db.session.add(record)
+    db.session.commit()
+
+    # Create a view record
+    view_record = DSViewRecord(
+        user_id=user.id, dataset_id=dataset.id, view_date=datetime.now(timezone.utc), view_cookie="test_cookie"
+    )
+    db.session.add(view_record)
+    db.session.commit()
+
+    # Mock current_user
+    mock_user = Mock()
+    mock_user.id = user.id
+    mock_user.is_authenticated = True
+
+    service = DSViewRecordService()
+    with patch("app.modules.dataset.repositories.current_user", mock_user):
+        exists = service.the_record_exists(dataset, "test_cookie")
+
+    assert exists is not None
+
+
+@pytest.mark.unit
+def test_ds_view_record_service_the_record_exists_false(test_client):
+    """Test DSViewRecordService.the_record_exists() returns False"""
+    from unittest.mock import Mock, patch
+
+    user = User(email="test_record_exists_fal@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    metadata = DSMetaData(title="Test", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+    db.session.add(dataset)
+    db.session.commit()
+
+    record = MaterialRecord(
+        materials_dataset_id=dataset.id, material_name="Silicon", property_name="density", property_value="100"
+    )
+    db.session.add(record)
+    db.session.commit()
+
+    # Mock current_user
+    mock_user = Mock()
+    mock_user.id = user.id
+    mock_user.is_authenticated = True
+
+    service = DSViewRecordService()
+    with patch("app.modules.dataset.repositories.current_user", mock_user):
+        exists = service.the_record_exists(dataset, "nonexistent_cookie")
+
+    assert exists is None
+
+
+@pytest.mark.unit
+def test_ds_view_record_service_create_new_record(test_client):
+    """Test DSViewRecordService.create_new_record() method"""
+    from unittest.mock import Mock, patch
+
+    user = User(email="test_create_new_record@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    metadata = DSMetaData(title="Test", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+    db.session.add(dataset)
+    db.session.commit()
+
+    record = MaterialRecord(
+        materials_dataset_id=dataset.id, material_name="Silicon", property_name="density", property_value="100"
+    )
+    db.session.add(record)
+    db.session.commit()
+
+    # Mock current_user
+    mock_user = Mock()
+    mock_user.id = user.id
+    mock_user.is_authenticated = True
+
+    service = DSViewRecordService()
+    with patch("app.modules.dataset.repositories.current_user", mock_user):
+        view_record = service.create_new_record(dataset, "new_cookie_123")
+
+    assert view_record is not None
+    assert view_record.dataset_id == dataset.id
+    assert view_record.view_cookie == "new_cookie_123"
+    assert view_record.view_date is not None
+
+
+# ============================================================================
+# Tests for MaterialsDatasetService
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_validate_csv_columns_valid(test_client):
+    """Test MaterialsDatasetService.validate_csv_columns() with valid columns"""
+    service = MaterialsDatasetService()
+    columns = ["material_name", "property_name", "property_value", "chemical_formula", "temperature"]
+
+    result = service.validate_csv_columns(columns)
+
+    assert result["valid"] is True
+    assert len(result["missing_required"]) == 0
+    assert result["message"] == "CSV structure is valid"
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_validate_csv_columns_missing_required(test_client):
+    """Test MaterialsDatasetService.validate_csv_columns() with missing required columns"""
+    service = MaterialsDatasetService()
+    columns = ["material_name", "property_name"]  # Missing property_value
+
+    result = service.validate_csv_columns(columns)
+
+    assert result["valid"] is False
+    assert "property_value" in result["missing_required"]
+    assert "Missing required columns" in result["message"]
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_validate_csv_columns_extra(test_client):
+    """Test MaterialsDatasetService.validate_csv_columns() with extra unknown columns"""
+    service = MaterialsDatasetService()
+    columns = ["material_name", "property_name", "property_value", "unknown_column"]
+
+    result = service.validate_csv_columns(columns)
+
+    assert result["valid"] is True  # Still valid if has required columns
+    assert "unknown_column" in result["extra_columns"]
+    assert "Unknown columns" in result["message"]
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_build_validation_message(test_client):
+    """Test MaterialsDatasetService._build_validation_message() method"""
+    service = MaterialsDatasetService()
+
+    # No errors
+    message = service._build_validation_message([], [])
+    assert message == "CSV structure is valid"
+
+    # Missing required
+    message = service._build_validation_message(["col1", "col2"], [])
+    assert "Missing required columns: col1, col2" in message
+
+    # Extra columns
+    message = service._build_validation_message([], ["extra1", "extra2"])
+    assert "Unknown columns (will be ignored): extra1, extra2" in message
+
+    # Both missing and extra
+    message = service._build_validation_message(["missing"], ["extra"])
+    assert "Missing required columns" in message
+    assert "Unknown columns" in message
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_file_success(test_client):
+    """Test MaterialsDatasetService.parse_csv_file() with valid CSV"""
+    import csv
+    import os
+
+    service = MaterialsDatasetService()
+
+    # Create a temporary CSV file
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".csv", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["material_name", "property_name", "property_value", "temperature"])
+        writer.writerow(["Silicon", "thermal_conductivity", "148", "300"])
+        writer.writerow(["Aluminum", "density", "2.7", ""])
+        temp_path = f.name
+
+    try:
+        result = service.parse_csv_file(temp_path)
+
+        assert result["success"] is True
+        assert result["rows_parsed"] == 2
+        assert len(result["data"]) == 2
+        assert result["data"][0]["material_name"] == "Silicon"
+        assert result["data"][0]["temperature"] == 300
+        assert result["data"][1]["material_name"] == "Aluminum"
+        assert result["data"][1]["temperature"] is None
+    finally:
+        os.unlink(temp_path)
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_file_missing_columns(test_client):
+    """Test MaterialsDatasetService.parse_csv_file() with missing required columns"""
+    import csv
+    import os
+
+    service = MaterialsDatasetService()
+
+    # Create a CSV with missing required column
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".csv", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["material_name", "property_name"])  # Missing property_value
+        writer.writerow(["Silicon", "thermal_conductivity"])
+        temp_path = f.name
+
+    try:
+        result = service.parse_csv_file(temp_path)
+
+        assert result["success"] is False
+        assert "Missing required columns" in result["error"]
+    finally:
+        os.unlink(temp_path)
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_file_not_found(test_client):
+    """Test MaterialsDatasetService.parse_csv_file() with non-existent file"""
+    service = MaterialsDatasetService()
+
+    result = service.parse_csv_file("/nonexistent/path/to/file.csv")
+
+    assert result["success"] is False
+    assert "CSV file not found" in result["error"]
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_row_valid(test_client):
+    """Test MaterialsDatasetService._parse_csv_row() with valid data"""
+    service = MaterialsDatasetService()
+
+    row = {
+        "material_name": "Silicon",
+        "property_name": "thermal_conductivity",
+        "property_value": "148",
+        "chemical_formula": "Si",
+        "temperature": "300",
+        "pressure": "1",
+        "uncertainty": "5",
+        "data_source": "EXPERIMENTAL",
+    }
+
+    parsed = service._parse_csv_row(row, row_num=2)
+
+    assert parsed["material_name"] == "Silicon"
+    assert parsed["property_name"] == "thermal_conductivity"
+    assert parsed["property_value"] == "148"
+    assert parsed["chemical_formula"] == "Si"
+    assert parsed["temperature"] == 300
+    assert parsed["pressure"] == 1
+    assert parsed["uncertainty"] == 5
+    assert parsed["data_source"] == DataSource.EXPERIMENTAL
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_row_missing_required(test_client):
+    """Test MaterialsDatasetService._parse_csv_row() with missing required field"""
+    service = MaterialsDatasetService()
+
+    row = {
+        "material_name": "",  # Empty required field
+        "property_name": "thermal_conductivity",
+        "property_value": "148",
+    }
+
+    with pytest.raises(ValueError, match="material_name is required"):
+        service._parse_csv_row(row, row_num=2)
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_row_invalid_data_source(test_client):
+    """Test MaterialsDatasetService._parse_csv_row() with invalid data_source"""
+    service = MaterialsDatasetService()
+
+    row = {
+        "material_name": "Silicon",
+        "property_name": "thermal_conductivity",
+        "property_value": "148",
+        "data_source": "INVALID_SOURCE",
+    }
+
+    # Should not raise, but set data_source to None
+    parsed = service._parse_csv_row(row, row_num=2)
+    assert parsed["data_source"] is None
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_create_material_records_from_csv(test_client):
+    """Test MaterialsDatasetService.create_material_records_from_csv()"""
+    import csv
+    import os
+
+    user = User(email="test_create_mat_records@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    metadata = DSMetaData(title="Test", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+    db.session.add(dataset)
+    db.session.commit()
+
+    service = MaterialsDatasetService()
+
+    # Create a temporary CSV file
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".csv", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["material_name", "property_name", "property_value"])
+        writer.writerow(["Silicon", "thermal_conductivity", "148"])
+        writer.writerow(["Aluminum", "density", "2.7"])
+        temp_path = f.name
+
+    try:
+        result = service.create_material_records_from_csv(dataset, temp_path)
+
+        assert result["success"] is True
+        assert result["records_created"] == 2
+        assert result["error"] is None
+
+        # Verify records were created
+        records = MaterialRecord.query.filter_by(materials_dataset_id=dataset.id).all()
+        assert len(records) == 2
+    finally:
+        os.unlink(temp_path)
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_get_recommendations(test_client):
+    """Test MaterialsDatasetService.get_recommendations()"""
+    user = User(email="test_get_recommendations@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    # Create current dataset with tags
+    metadata1 = DSMetaData(
+        title="Dataset 1",
+        description="Test",
+        publication_type=PublicationType.JOURNAL_ARTICLE,
+        tags="materials, silicon, conductivity",
+    )
+    db.session.add(metadata1)
+    db.session.commit()
+
+    dataset1 = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata1.id)
+    db.session.add(dataset1)
+    db.session.commit()
+
+    record1 = MaterialRecord(
+        materials_dataset_id=dataset1.id, material_name="Silicon", property_name="density", property_value="100"
+    )
+    db.session.add(record1)
+    db.session.commit()
+
+    # Create similar dataset (shares tags)
+    metadata2 = DSMetaData(
+        title="Dataset 2",
+        description="Test",
+        publication_type=PublicationType.JOURNAL_ARTICLE,
+        tags="materials, aluminum",
+    )
+    db.session.add(metadata2)
+    db.session.commit()
+
+    dataset2 = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata2.id)
+    db.session.add(dataset2)
+    db.session.commit()
+
+    record2 = MaterialRecord(
+        materials_dataset_id=dataset2.id, material_name="Aluminum", property_name="density", property_value="100"
+    )
+    db.session.add(record2)
+    db.session.commit()
+
+    service = MaterialsDatasetService()
+    recommendations = service.get_recommendations(dataset1.id, limit=3)
+
+    assert len(recommendations) >= 1
+    assert dataset2 in recommendations
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_get_recommendations_no_tags(test_client):
+    """Test MaterialsDatasetService.get_recommendations() with dataset without tags"""
+    user = User(email="test_recommendations_no@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    # Create dataset without tags
+    metadata = DSMetaData(title="Dataset 1", description="Test", publication_type=PublicationType.NONE, tags=None)
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+    db.session.add(dataset)
+    db.session.commit()
+
+    record = MaterialRecord(
+        materials_dataset_id=dataset.id, material_name="Silicon", property_name="density", property_value="100"
+    )
+    db.session.add(record)
+    db.session.commit()
+
+    service = MaterialsDatasetService()
+    recommendations = service.get_recommendations(dataset.id, limit=3)
+
+    # Should return recent datasets (empty list since this is the only one)
+    assert isinstance(recommendations, list)
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_get_all_except(test_client):
+    """Test MaterialsDatasetService.get_all_except()"""
+    user = User(email="test_get_all_except@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    # Create 3 datasets
+    datasets = []
+    for i in range(3):
+        metadata = DSMetaData(title=f"Dataset {i}", description="Test", publication_type=PublicationType.NONE)
+        db.session.add(metadata)
+        db.session.commit()
+
+        dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+        db.session.add(dataset)
+        db.session.commit()
+
+        record = MaterialRecord(
+            materials_dataset_id=dataset.id, material_name="Silicon", property_name="density", property_value="100"
+        )
+        db.session.add(record)
+        db.session.commit()
+
+        datasets.append(dataset)
+
+    service = MaterialsDatasetService()
+    result = service.get_all_except(datasets[0].id)
+
+    assert len(result) >= 2
+    assert datasets[0] not in result
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_filter_by_authors(test_client):
+    """Test MaterialsDatasetService.filter_by_authors()"""
+    user = User(email="test_filter_by_authors@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    # Create dataset with author
+    metadata1 = DSMetaData(title="Dataset 1", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata1)
+    db.session.commit()
+
+    author1 = Author(name="John Doe", affiliation="University A", ds_meta_data_id=metadata1.id)
+    db.session.add(author1)
+    db.session.commit()
+
+    dataset1 = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata1.id)
+    db.session.add(dataset1)
+    db.session.commit()
+
+    record1 = MaterialRecord(
+        materials_dataset_id=dataset1.id, material_name="Silicon", property_name="density", property_value="100"
+    )
+    db.session.add(record1)
+    db.session.commit()
+
+    # Create dataset with same author
+    metadata2 = DSMetaData(title="Dataset 2", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata2)
+    db.session.commit()
+
+    author2 = Author(name="John Doe", affiliation="University B", ds_meta_data_id=metadata2.id)
+    db.session.add(author2)
+    db.session.commit()
+
+    dataset2 = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata2.id)
+    db.session.add(dataset2)
+    db.session.commit()
+
+    record2 = MaterialRecord(
+        materials_dataset_id=dataset2.id, material_name="Aluminum", property_name="density", property_value="100"
+    )
+    db.session.add(record2)
+    db.session.commit()
+
+    # Create dataset with different author
+    metadata3 = DSMetaData(title="Dataset 3", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata3)
+    db.session.commit()
+
+    author3 = Author(name="Jane Smith", affiliation="University C", ds_meta_data_id=metadata3.id)
+    db.session.add(author3)
+    db.session.commit()
+
+    dataset3 = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata3.id)
+    db.session.add(dataset3)
+    db.session.commit()
+
+    record3 = MaterialRecord(
+        materials_dataset_id=dataset3.id, material_name="Copper", property_name="density", property_value="100"
+    )
+    db.session.add(record3)
+    db.session.commit()
+
+    service = MaterialsDatasetService()
+    all_datasets = [dataset2, dataset3]
+    filtered = service.filter_by_authors(all_datasets, dataset1)
+
+    assert dataset2 in filtered  # Same author
+    assert dataset3 not in filtered  # Different author
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_filter_by_tags(test_client):
+    """Test MaterialsDatasetService.filter_by_tags()"""
+    user = User(email="test_filter_by_tags@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    # Create dataset with tags
+    metadata1 = DSMetaData(
+        title="Dataset 1", description="Test", publication_type=PublicationType.NONE, tags="materials, silicon"
+    )
+    db.session.add(metadata1)
+    db.session.commit()
+
+    dataset1 = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata1.id)
+    db.session.add(dataset1)
+    db.session.commit()
+
+    record1 = MaterialRecord(
+        materials_dataset_id=dataset1.id, material_name="Silicon", property_name="density", property_value="100"
+    )
+    db.session.add(record1)
+    db.session.commit()
+
+    # Create dataset with overlapping tags
+    metadata2 = DSMetaData(
+        title="Dataset 2", description="Test", publication_type=PublicationType.NONE, tags="silicon, conductivity"
+    )
+    db.session.add(metadata2)
+    db.session.commit()
+
+    dataset2 = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata2.id)
+    db.session.add(dataset2)
+    db.session.commit()
+
+    record2 = MaterialRecord(
+        materials_dataset_id=dataset2.id, material_name="Silicon", property_name="conductivity", property_value="100"
+    )
+    db.session.add(record2)
+    db.session.commit()
+
+    # Create dataset with no overlapping tags
+    metadata3 = DSMetaData(
+        title="Dataset 3", description="Test", publication_type=PublicationType.NONE, tags="aluminum, copper"
+    )
+    db.session.add(metadata3)
+    db.session.commit()
+
+    dataset3 = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata3.id)
+    db.session.add(dataset3)
+    db.session.commit()
+
+    record3 = MaterialRecord(
+        materials_dataset_id=dataset3.id, material_name="Aluminum", property_name="density", property_value="100"
+    )
+    db.session.add(record3)
+    db.session.commit()
+
+    service = MaterialsDatasetService()
+    all_datasets = [dataset2, dataset3]
+    filtered = service.filter_by_tags(all_datasets, dataset1)
+
+    assert dataset2 in filtered  # Shares 'silicon' tag
+    assert dataset3 not in filtered  # No shared tags
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_filter_by_properties(test_client):
+    """Test MaterialsDatasetService.filter_by_properties()"""
+    user = User(email="test_filter_by_properti@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    # Create dataset with specific properties
+    metadata1 = DSMetaData(title="Dataset 1", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata1)
+    db.session.commit()
+
+    dataset1 = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata1.id)
+    db.session.add(dataset1)
+    db.session.commit()
+
+    record1 = MaterialRecord(
+        materials_dataset_id=dataset1.id,
+        material_name="Silicon",
+        property_name="thermal_conductivity",
+        property_value="148",
+    )
+    db.session.add(record1)
+    db.session.commit()
+
+    # Create dataset with same property
+    metadata2 = DSMetaData(title="Dataset 2", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata2)
+    db.session.commit()
+
+    dataset2 = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata2.id)
+    db.session.add(dataset2)
+    db.session.commit()
+
+    record2 = MaterialRecord(
+        materials_dataset_id=dataset2.id,
+        material_name="Aluminum",
+        property_name="thermal_conductivity",
+        property_value="237",
+    )
+    db.session.add(record2)
+    db.session.commit()
+
+    # Create dataset with different property
+    metadata3 = DSMetaData(title="Dataset 3", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata3)
+    db.session.commit()
+
+    dataset3 = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata3.id)
+    db.session.add(dataset3)
+    db.session.commit()
+
+    record3 = MaterialRecord(
+        materials_dataset_id=dataset3.id,
+        material_name="Copper",
+        property_name="electrical_resistivity",
+        property_value="1.68",
+    )
+    db.session.add(record3)
+    db.session.commit()
+
+    service = MaterialsDatasetService()
+    all_datasets = [dataset2, dataset3]
+    filtered = service.filter_by_properties(all_datasets, dataset1)
+
+    assert dataset2 in filtered  # Same property
+    assert dataset3 not in filtered  # Different property
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_get_top_global_downloads(test_client):
+    """Test MaterialsDatasetService.get_top_global() for downloads"""
+    service = MaterialsDatasetService()
+
+    # Call the method (it delegates to repository)
+    result = service.get_top_global(metric="downloads", limit=10, days=30)
+
+    # Just verify it returns a list
+    assert isinstance(result, list)
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_get_top_global_views(test_client):
+    """Test MaterialsDatasetService.get_top_global() for views"""
+    service = MaterialsDatasetService()
+
+    # Call the method (it delegates to repository)
+    result = service.get_top_global(metric="views", limit=10, days=30)
+
+    # Just verify it returns a list
+    assert isinstance(result, list)
+
+
+# ============================================================================
+# Tests for MaterialsDatasetService.create_from_form()
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_create_from_form(test_client):
+    """Test MaterialsDatasetService.create_from_form() method"""
+    from unittest.mock import Mock
+
+    service = MaterialsDatasetService()
+
+    # Create mock user
+    mock_user = Mock()
+    mock_user.id = 1
+    mock_user.profile = Mock()
+    mock_user.profile.name = "John"
+    mock_user.profile.surname = "Doe"
+    mock_user.profile.affiliation = "University"
+    mock_user.profile.orcid = "0000-0001-2345-6789"
+
+    # Create mock form
+    mock_form = Mock()
+    mock_form.get_dsmetadata.return_value = {
+        "title": "Test Dataset",
+        "description": "Test description",
+        "publication_type": PublicationType.NONE,
+    }
+    mock_form.get_authors.return_value = []
+
+    # Create dataset
+    dataset = service.create_from_form(form=mock_form, current_user=mock_user)
+
+    assert dataset is not None
+    assert dataset.user_id == mock_user.id
+    assert dataset.ds_meta_data is not None
+    assert dataset.ds_meta_data.title == "Test Dataset"
+
+
+# ============================================================================
+# Tests for helper functions (regenerate_csv_for_dataset)
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_regenerate_csv_for_dataset_success(test_client):
+    """Test regenerate_csv_for_dataset() creates CSV file correctly"""
+    from app.modules.dataset.routes import regenerate_csv_for_dataset
+    import os
+
+    user = User(email="test_regenerate_csv@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    metadata = DSMetaData(title="Test", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+    db.session.add(dataset)
+    db.session.commit()
+
+    # Create some material records
+    for i in range(3):
+        record = MaterialRecord(
+            materials_dataset_id=dataset.id,
+            material_name=f"Material_{i}",
+            property_name="density",
+            property_value="100",
+        )
+        db.session.add(record)
+    db.session.commit()
+
+    # Generate CSV
+    result = regenerate_csv_for_dataset(dataset.id)
+
+    assert result is True
+    assert dataset.csv_file_path is not None
+
+    # Verify CSV file was created
+    csv_path = dataset.csv_file_path
+    if not os.path.isabs(csv_path):
+        csv_path = os.path.abspath(csv_path)
+
+    assert os.path.exists(csv_path)
+
+    # Clean up
+    if os.path.exists(csv_path):
+        os.remove(csv_path)
+
+
+@pytest.mark.unit
+def test_regenerate_csv_for_dataset_not_found(test_client):
+    """Test regenerate_csv_for_dataset() with non-existent dataset"""
+    from app.modules.dataset.routes import regenerate_csv_for_dataset
+
+    result = regenerate_csv_for_dataset(99999)
+
+    assert result is False
+
+
+#  ============================================================================
+# Tests for MaterialRecord model methods
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_material_record_to_dict_with_data_source_enum(test_client):
+    """Test MaterialRecord.to_dict() converts DataSource enum correctly"""
+    user = User(email="test_material_record_enum@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    metadata = DSMetaData(title="Test", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+    db.session.add(dataset)
+    db.session.commit()
+
+    record = MaterialRecord(
+        materials_dataset_id=dataset.id,
+        material_name="Silicon",
+        property_name="thermal_conductivity",
+        property_value="148",
+        data_source=DataSource.COMPUTATIONAL,
+    )
+    db.session.add(record)
+    db.session.commit()
+
+    result = record.to_dict()
+
+    assert result["data_source"] == "computational"
+
+
+@pytest.mark.unit
+def test_material_record_to_dict_with_none_values(test_client):
+    """Test MaterialRecord.to_dict() handles None values correctly"""
+    user = User(email="test_material_record_none@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    metadata = DSMetaData(title="Test", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+    db.session.add(dataset)
+    db.session.commit()
+
+    record = MaterialRecord(
+        materials_dataset_id=dataset.id,
+        material_name="Silicon",
+        property_name="density",
+        property_value="2.33",
+        chemical_formula=None,
+        temperature=None,
+        data_source=None,
+    )
+    db.session.add(record)
+    db.session.commit()
+
+    result = record.to_dict()
+
+    assert result["chemical_formula"] is None
+    assert result["temperature"] is None
+    assert result["data_source"] is None
+
+
+# ============================================================================
+# Tests for calculate_checksum_and_size function
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_calculate_checksum_and_size_with_actual_content(test_client):
+    """Test calculate_checksum_and_size() with specific content"""
+    import hashlib
+    import os
+
+    # Create a file with known content
+    with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".txt") as f:
+        content = b"Hello, World!"
+        f.write(content)
+        temp_path = f.name
+
+    try:
+        checksum, size = calculate_checksum_and_size(temp_path)
+
+        # Verify checksum matches expected MD5
+        expected_checksum = hashlib.md5(content).hexdigest()
+        assert checksum == expected_checksum
+        assert size == len(content)
+    finally:
+        os.unlink(temp_path)
+
+
+# ============================================================================
+# Tests for MaterialsDataset model methods
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_materials_dataset_to_dict(test_client):
+    """Test MaterialsDataset.to_dict() method"""
+    user = User(email="test_dataset_to_dict@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    metadata = DSMetaData(
+        title="Test Dataset",
+        description="Test",
+        publication_type=PublicationType.NONE,
+        tags="materials, silicon",
+    )
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id, csv_file_path="/path/to/file.csv")
+    db.session.add(dataset)
+    db.session.commit()
+
+    record = MaterialRecord(
+        materials_dataset_id=dataset.id, material_name="Silicon", property_name="density", property_value="2.33"
+    )
+    db.session.add(record)
+    db.session.commit()
+
+    # Use Flask application context for to_dict() which uses url_for and request
+    with test_client.application.test_request_context():
+        result = dataset.to_dict()
+
+        assert result["id"] == dataset.id
+        assert result["csv_file_path"] == "/path/to/file.csv"
+        assert result["materials_count"] == 1
+
+
+@pytest.mark.unit
+def test_materials_dataset_get_records_count(test_client):
+    """Test MaterialsDataset.get_materials_count() returns correct count"""
+    user = User(email="test_records_count@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    metadata = DSMetaData(title="Test", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+    db.session.add(dataset)
+    db.session.commit()
+
+    # Add 5 records
+    for i in range(5):
+        record = MaterialRecord(
+            materials_dataset_id=dataset.id,
+            material_name=f"Material_{i}",
+            property_name="density",
+            property_value="100",
+        )
+        db.session.add(record)
+    db.session.commit()
+
+    assert dataset.get_materials_count() == 5
+
+
+# ============================================================================
+# Tests for Author model
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_author_to_dict(test_client):
+    """Test Author.to_dict() method"""
+    metadata = DSMetaData(title="Test", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata)
+    db.session.commit()
+
+    author = Author(
+        name="John Doe",
+        affiliation="University of Test",
+        orcid="0000-0001-2345-6789",
+        ds_meta_data_id=metadata.id,
+    )
+    db.session.add(author)
+    db.session.commit()
+
+    result = author.to_dict()
+
+    assert result["name"] == "John Doe"
+    assert result["affiliation"] == "University of Test"
+    assert result["orcid"] == "0000-0001-2345-6789"
+
+
+# ============================================================================
+# Tests for DSViewRecordService.create_cookie()
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_ds_view_record_service_create_cookie_with_existing_cookie(test_client):
+    """Test DSViewRecordService.create_cookie() with existing cookie"""
+    from unittest.mock import Mock, patch
+
+    user = User(email="test_create_cookie_existing@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    metadata = DSMetaData(title="Test", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+    db.session.add(dataset)
+    db.session.commit()
+
+    record = MaterialRecord(
+        materials_dataset_id=dataset.id, material_name="Silicon", property_name="density", property_value="100"
+    )
+    db.session.add(record)
+    db.session.commit()
+
+    # Create existing view record with UUID format cookie (36 chars max)
+    existing_cookie = "12345678-1234-5678-1234-567812345678"
+    view_record = DSViewRecord(
+        user_id=user.id, dataset_id=dataset.id, view_date=datetime.now(timezone.utc), view_cookie=existing_cookie
+    )
+    db.session.add(view_record)
+    db.session.commit()
+
+    # Mock current_user
+    mock_user = Mock()
+    mock_user.id = user.id
+    mock_user.is_authenticated = True
+
+    service = DSViewRecordService()
+
+    # Mock request.cookies to return existing cookie
+    with test_client.application.test_request_context():
+        with patch("app.modules.dataset.repositories.current_user", mock_user):
+            with patch("app.modules.dataset.services.request") as mock_request:
+                # Properly mock cookies.get() method
+                mock_cookies = Mock()
+                mock_cookies.get = Mock(return_value=existing_cookie)
+                mock_request.cookies = mock_cookies
+
+                cookie = service.create_cookie(dataset)
+
+    assert cookie == existing_cookie
+
+
+# ============================================================================
+# Tests for MaterialsDatasetService filter methods with empty datasets
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_filter_by_authors_no_authors(test_client):
+    """Test MaterialsDatasetService.filter_by_authors() with dataset without authors"""
+    user = User(email="test_filter_no_authors@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    # Create dataset without authors
+    metadata = DSMetaData(title="Dataset 1", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+    db.session.add(dataset)
+    db.session.commit()
+
+    record = MaterialRecord(
+        materials_dataset_id=dataset.id, material_name="Silicon", property_name="density", property_value="100"
+    )
+    db.session.add(record)
+    db.session.commit()
+
+    service = MaterialsDatasetService()
+    filtered = service.filter_by_authors([], dataset)
+
+    assert filtered == []
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_filter_by_tags_no_tags(test_client):
+    """Test MaterialsDatasetService.filter_by_tags() with dataset without tags"""
+    user = User(email="test_filter_no_tags@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    # Create dataset without tags
+    metadata = DSMetaData(title="Dataset 1", description="Test", publication_type=PublicationType.NONE, tags=None)
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+    db.session.add(dataset)
+    db.session.commit()
+
+    record = MaterialRecord(
+        materials_dataset_id=dataset.id, material_name="Silicon", property_name="density", property_value="100"
+    )
+    db.session.add(record)
+    db.session.commit()
+
+    service = MaterialsDatasetService()
+    filtered = service.filter_by_tags([], dataset)
+
+    assert filtered == []
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_filter_by_properties_no_properties(test_client):
+    """Test MaterialsDatasetService.filter_by_properties() with dataset without properties"""
+    user = User(email="test_filter_no_properties@example.com", password="test123")
+    db.session.add(user)
+    db.session.commit()
+
+    # Create dataset without any material records (no properties)
+    metadata = DSMetaData(title="Dataset 1", description="Test", publication_type=PublicationType.NONE)
+    db.session.add(metadata)
+    db.session.commit()
+
+    dataset = MaterialsDataset(user_id=user.id, ds_meta_data_id=metadata.id)
+    db.session.add(dataset)
+    db.session.commit()
+
+    service = MaterialsDatasetService()
+    filtered = service.filter_by_properties([], dataset)
+
+    assert filtered == []
+
+
+# ============================================================================
+# Tests for MaterialsDatasetService error handling and edge cases
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_row_missing_material_name(test_client):
+    """Test _parse_csv_row raises ValueError when material_name is missing"""
+    service = MaterialsDatasetService()
+
+    # Row without material_name
+    row = {"property_name": "density", "property_value": "2.5"}
+
+    with pytest.raises(ValueError, match="material_name is required"):
+        service._parse_csv_row(row, row_num=1)
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_row_missing_property_name(test_client):
+    """Test _parse_csv_row raises ValueError when property_name is missing"""
+    service = MaterialsDatasetService()
+
+    # Row without property_name
+    row = {"material_name": "Gold", "property_value": "2.5"}
+
+    with pytest.raises(ValueError, match="property_name is required"):
+        service._parse_csv_row(row, row_num=1)
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_row_missing_property_value(test_client):
+    """Test _parse_csv_row raises ValueError when property_value is missing"""
+    service = MaterialsDatasetService()
+
+    # Row without property_value
+    row = {"material_name": "Gold", "property_name": "density"}
+
+    with pytest.raises(ValueError, match="property_value is required"):
+        service._parse_csv_row(row, row_num=1)
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_row_invalid_temperature(test_client):
+    """Test _parse_csv_row handles invalid temperature value"""
+    service = MaterialsDatasetService()
+
+    # Row with invalid temperature
+    row = {"material_name": "Gold", "property_name": "density", "property_value": "2.5", "temperature": "invalid"}
+
+    result = service._parse_csv_row(row, row_num=1)
+
+    assert result["temperature"] is None
+    assert result["material_name"] == "Gold"
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_row_invalid_pressure(test_client):
+    """Test _parse_csv_row handles invalid pressure value"""
+    service = MaterialsDatasetService()
+
+    # Row with invalid pressure
+    row = {"material_name": "Gold", "property_name": "density", "property_value": "2.5", "pressure": "not_a_number"}
+
+    result = service._parse_csv_row(row, row_num=1)
+
+    assert result["pressure"] is None
+    assert result["material_name"] == "Gold"
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_row_invalid_uncertainty(test_client):
+    """Test _parse_csv_row handles invalid uncertainty value"""
+    service = MaterialsDatasetService()
+
+    # Row with invalid uncertainty
+    row = {"material_name": "Gold", "property_name": "density", "property_value": "2.5", "uncertainty": "abc"}
+
+    result = service._parse_csv_row(row, row_num=1)
+
+    assert result["uncertainty"] is None
+    assert result["material_name"] == "Gold"
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_file_encoding_error(test_client):
+    """Test parse_csv_file handles UnicodeDecodeError"""
+    import tempfile
+
+    service = MaterialsDatasetService()
+
+    # Create a file with invalid encoding
+    with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".csv") as f:
+        # Write invalid UTF-8 bytes
+        f.write(b"\xff\xfe\xff\xfe")
+        temp_path = f.name
+
+    try:
+        result = service.parse_csv_file(temp_path, encoding="utf-8")
+
+        assert result["success"] is False
+        assert "Encoding error" in result["error"]
+    finally:
+        import os
+
+        os.unlink(temp_path)
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_parse_csv_file_with_invalid_row(test_client):
+    """Test parse_csv_file skips invalid rows and continues"""
+    import tempfile
+
+    service = MaterialsDatasetService()
+
+    # Create CSV with one invalid and one valid row
+    csv_content = """material_name,property_name,property_value
+Gold,density,19.3
+,density,10.5
+Silver,density,10.5"""
+
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".csv", newline="") as f:
+        f.write(csv_content)
+        temp_path = f.name
+
+    try:
+        result = service.parse_csv_file(temp_path)
+
+        assert result["success"] is True
+        assert result["rows_parsed"] == 2  # Only 2 valid rows (invalid one skipped)
+        assert len(result["data"]) == 2
+    finally:
+        import os
+
+        os.unlink(temp_path)
+
+
+@pytest.mark.unit
+def test_materials_dataset_service_get_recommendations_nonexistent_dataset(test_client):
+    """Test get_recommendations returns empty list for nonexistent dataset"""
+    service = MaterialsDatasetService()
+
+    recommendations = service.get_recommendations(materials_dataset_id=999999, limit=3)
+
+    assert recommendations == []

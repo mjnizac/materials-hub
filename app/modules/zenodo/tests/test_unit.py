@@ -317,3 +317,156 @@ def test_get_doi(mock_get, test_client):
     doi = service.get_doi(12345)
 
     assert doi == "10.5281/zenodo.12345"
+
+
+@pytest.mark.unit
+@patch("app.modules.zenodo.services.requests.post")
+@patch("app.modules.zenodo.services.requests.delete")
+@patch("builtins.open", create=True)
+@patch("os.path.exists")
+@patch("os.remove")
+@patch.dict(os.environ, {"WORKING_DIR": "/tmp"})
+def test_test_full_connection_success(mock_remove, mock_exists, mock_open, mock_delete, mock_post, test_client):
+    """Test full connection test with Zenodo (create, upload, delete)."""
+    # Mock successful responses
+    mock_create_response = Mock()
+    mock_create_response.status_code = 201
+    mock_create_response.json.return_value = {"id": 12345}
+
+    mock_upload_response = Mock()
+    mock_upload_response.status_code = 201
+
+    mock_delete_response = Mock()
+    mock_delete_response.status_code = 204
+
+    mock_post.side_effect = [mock_create_response, mock_upload_response]
+    mock_delete.return_value = mock_delete_response
+
+    # Mock file operations
+    mock_file = Mock()
+    mock_open.return_value.__enter__.return_value = mock_file
+    mock_exists.return_value = True
+
+    service = ZenodoService()
+    result = service.test_full_connection()
+
+    assert result.json["success"] is True
+    assert len(result.json["messages"]) == 0
+    mock_remove.assert_called_once()
+
+
+@pytest.mark.unit
+@patch("app.modules.zenodo.services.requests.post")
+@patch.dict(os.environ, {"WORKING_DIR": "/tmp"})
+@patch("builtins.open", create=True)
+def test_test_full_connection_create_failure(mock_open, mock_post, test_client):
+    """Test full connection fails when creating deposition."""
+    mock_response = Mock()
+    mock_response.status_code = 400
+    mock_post.return_value = mock_response
+
+    mock_file = Mock()
+    mock_open.return_value.__enter__.return_value = mock_file
+
+    service = ZenodoService()
+    result = service.test_full_connection()
+
+    assert result.json["success"] is False
+    assert "Failed to create test deposition" in result.json["messages"]
+
+
+@pytest.mark.unit
+@patch("app.modules.zenodo.services.requests.post")
+@patch("app.modules.zenodo.services.requests.delete")
+@patch("builtins.open", create=True)
+@patch("os.path.exists")
+@patch("os.remove")
+@patch.dict(os.environ, {"WORKING_DIR": "/tmp"})
+def test_test_full_connection_upload_failure(mock_remove, mock_exists, mock_open, mock_delete, mock_post, test_client):
+    """Test full connection fails when uploading file."""
+    mock_create_response = Mock()
+    mock_create_response.status_code = 201
+    mock_create_response.json.return_value = {"id": 12345}
+
+    mock_upload_response = Mock()
+    mock_upload_response.status_code = 400
+
+    mock_delete_response = Mock()
+    mock_delete_response.status_code = 204
+
+    mock_post.side_effect = [mock_create_response, mock_upload_response]
+    mock_delete.return_value = mock_delete_response
+
+    mock_file = Mock()
+    mock_open.return_value.__enter__.return_value = mock_file
+    mock_exists.return_value = True
+
+    service = ZenodoService()
+    result = service.test_full_connection()
+
+    assert result.json["success"] is False
+    assert "Failed to upload test file" in result.json["messages"][0]
+
+
+@pytest.mark.unit
+@patch("app.modules.zenodo.services.requests.post")
+@patch("app.modules.zenodo.services.current_user")
+@patch("builtins.open", create=True)
+@patch("app.modules.zenodo.services.uploads_folder_name")
+def test_upload_file_success(mock_uploads_folder, mock_open, mock_current_user, mock_post, test_client):
+    """Test uploading a file to Zenodo deposition."""
+    mock_response = Mock()
+    mock_response.status_code = 201
+    mock_response.json.return_value = {"id": "file123", "filename": "test.uvl"}
+    mock_post.return_value = mock_response
+
+    mock_current_user.id = 1
+    mock_uploads_folder.return_value = "/uploads"
+
+    mock_file = Mock()
+    mock_open.return_value = mock_file
+
+    service = ZenodoService()
+
+    # Mock dataset and feature model
+    mock_dataset = Mock()
+    mock_dataset.id = 10
+
+    mock_fm = Mock()
+    mock_fm.fm_meta_data.uvl_filename = "test.uvl"
+
+    result = service.upload_file(mock_dataset, 12345, mock_fm)
+
+    assert result["id"] == "file123"
+    assert result["filename"] == "test.uvl"
+    mock_post.assert_called_once()
+
+
+@pytest.mark.unit
+@patch("app.modules.zenodo.services.requests.post")
+@patch("app.modules.zenodo.services.current_user")
+@patch("builtins.open", create=True)
+@patch("app.modules.zenodo.services.uploads_folder_name")
+def test_upload_file_failure(mock_uploads_folder, mock_open, mock_current_user, mock_post, test_client):
+    """Test upload file fails with exception."""
+    mock_response = Mock()
+    mock_response.status_code = 400
+    mock_response.json.return_value = {"error": "Bad request"}
+    mock_post.return_value = mock_response
+
+    mock_current_user.id = 1
+    mock_uploads_folder.return_value = "/uploads"
+
+    mock_file = Mock()
+    mock_open.return_value = mock_file
+
+    service = ZenodoService()
+
+    mock_dataset = Mock()
+    mock_dataset.id = 10
+
+    mock_fm = Mock()
+    mock_fm.fm_meta_data.uvl_filename = "test.uvl"
+
+    with pytest.raises(Exception, match="Failed to upload files"):
+        service.upload_file(mock_dataset, 12345, mock_fm)

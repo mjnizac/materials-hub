@@ -8,6 +8,7 @@ from app import db
 from app.modules.zenodo.models import Zenodo
 from core.repositories.BaseRepository import BaseRepository
 from core.services.BaseService import BaseService
+from core.seeders.BaseSeeder import BaseSeeder
 
 
 @pytest.mark.unit
@@ -208,3 +209,141 @@ def test_base_service_get_or_404(test_client):
 
     assert retrieved is not None
     assert retrieved.id == instance.id
+
+
+@pytest.mark.unit
+def test_base_repository_get_by_column(test_client):
+    """Test BaseRepository get_by_column method."""
+    from app.modules.auth.models import User
+
+    repository = BaseRepository(User)
+
+    # Create users with specific emails
+    user1 = repository.create(email="test1@example.com", password="pass1")
+    user2 = repository.create(email="test2@example.com", password="pass2")
+    user3 = repository.create(email="test1@example.com", password="pass3")  # Duplicate email
+
+    # Get by email column
+    results = repository.get_by_column("email", "test1@example.com")
+
+    assert len(results) == 2
+    assert user1 in results
+    assert user3 in results
+    assert user2 not in results
+
+
+@pytest.mark.unit
+def test_base_repository_delete_by_column(test_client):
+    """Test BaseRepository delete_by_column method."""
+    from app.modules.auth.models import User
+
+    repository = BaseRepository(User)
+
+    # Create users
+    repository.create(email="delete@example.com", password="pass1")
+    repository.create(email="delete@example.com", password="pass2")
+    repository.create(email="keep@example.com", password="pass3")
+
+    initial_count = repository.count()
+
+    # Delete by email column
+    result = repository.delete_by_column("email", "delete@example.com")
+
+    assert result is True
+    assert repository.count() == initial_count - 2
+
+    # Verify they're gone
+    remaining = repository.get_by_column("email", "delete@example.com")
+    assert len(remaining) == 0
+
+    # Verify other user still exists
+    kept = repository.get_by_column("email", "keep@example.com")
+    assert len(kept) == 1
+
+
+@pytest.mark.unit
+def test_base_repository_get_or_404_success(test_client):
+    """Test BaseRepository get_or_404 method with existing ID."""
+    repository = BaseRepository(Zenodo)
+    instance = repository.create()
+
+    retrieved = repository.get_or_404(instance.id)
+
+    assert retrieved is not None
+    assert retrieved.id == instance.id
+
+
+# ===========================
+# BaseSeeder Tests
+# ===========================
+
+
+@pytest.mark.unit
+def test_base_seeder_initialization(test_client):
+    """Test BaseSeeder initialization."""
+    seeder = BaseSeeder()
+    assert seeder.db == db
+    assert seeder.priority == 10
+
+
+@pytest.mark.unit
+def test_base_seeder_run_not_implemented(test_client):
+    """Test BaseSeeder run method raises NotImplementedError."""
+    seeder = BaseSeeder()
+    with pytest.raises(NotImplementedError, match="The 'run' method must be implemented by the child class."):
+        seeder.run()
+
+
+@pytest.mark.unit
+def test_base_seeder_seed_empty_data(test_client):
+    """Test BaseSeeder seed method with empty data."""
+    seeder = BaseSeeder()
+    result = seeder.seed([])
+    assert result == []
+
+
+@pytest.mark.unit
+def test_base_seeder_seed_valid_data(test_client):
+    """Test BaseSeeder seed method with valid data."""
+    seeder = BaseSeeder()
+
+    # Create test data
+    zenodos = [Zenodo(), Zenodo(), Zenodo()]
+
+    result = seeder.seed(zenodos)
+
+    assert len(result) == 3
+    assert all(z.id is not None for z in result)
+    assert all(isinstance(z, Zenodo) for z in result)
+
+
+@pytest.mark.unit
+def test_base_seeder_seed_mixed_types_error(test_client):
+    """Test BaseSeeder seed method with mixed model types."""
+    from app.modules.auth.models import User
+
+    seeder = BaseSeeder()
+
+    # Mix different model types
+    mixed_data = [Zenodo(), User()]
+
+    with pytest.raises(ValueError, match="All objects must be of the same model."):
+        seeder.seed(mixed_data)
+
+
+@pytest.mark.unit
+def test_base_seeder_seed_integrity_error(test_client):
+    """Test BaseSeeder seed method handles IntegrityError."""
+    from app.modules.auth.models import User
+
+    seeder = BaseSeeder()
+
+    # Create user with duplicate email (violates unique constraint)
+    user1 = User(email="duplicate@example.com", password="pass1")
+    seeder.seed([user1])
+
+    # Try to create another user with same email
+    user2 = User(email="duplicate@example.com", password="pass2")
+
+    with pytest.raises(Exception, match="Failed to insert data into `user` table"):
+        seeder.seed([user2])
