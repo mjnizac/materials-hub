@@ -14,7 +14,6 @@ jobs:
     name: Selenium
     runs-on: ubuntu-24.04
 
-    # Variables de entorno globales
     env:
       POSTGRES_ROOT_PASSWORD: materialhub_root_password
       POSTGRES_DATABASE: materialhub_test
@@ -29,7 +28,6 @@ jobs:
       SECRET_KEY: test-secret-key-for-ci
 
     services:
-      # Contenedor de servicio PostgreSQL
       postgres:
         image: postgres:17
         env:
@@ -44,7 +42,6 @@ jobs:
           --health-timeout=5s
           --health-retries=3
 
-      # Servicio de Selenium Chrome
       chrome:
         image: selenium/standalone-chrome:latest
         ports:
@@ -53,71 +50,66 @@ jobs:
 
     steps:
 
-      # Paso 1: Obtener el código del repositorio
       - name: Obtener código
         uses: actions/checkout@v5
 
-      # Paso 2: Configurar entorno Python (versión 3.12)
       - name: Configurar Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
 
-      # Paso 3: Eliminar modo editable local para dependencia rosemary
       - name: Eliminar rosemary en modo editable
         run: sed -i '/rosemary @ file:\/\/\/app/d' requirements.txt
 
-      # Paso 4: Instalar dependencias de Python
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -e .
 
-      # Paso 5: Inicializar base de datos
+      # --- NUEVO STEP PARA CORREGIR EL ERROR ---
+      - name: Instalar PostgreSQL 17 client
+        run: |
+          sudo apt update
+          sudo apt install -y postgresql-client-17
+      # -----------------------------------------
+
       - name: Configurar base de datos
         run: |
           rosemary db:upgrade
           rosemary db:seed
 
-      # Paso 6: Iniciar aplicación Flask en segundo plano
       - name: Iniciar aplicación Flask
         run: |
           flask run --host=0.0.0.0 --port=5000 &
           echo $! > flask.pid
           sleep 10
 
-      # Paso 7: Verificar que la aplicación está funcionando
       - name: Verificación de salud
         run: |
           curl -f http://localhost:5000/ || exit 1
           echo "¡Aplicación funcionando correctamente!"
 
-      # Paso 8: Esperar a que Selenium esté listo
       - name: Esperar a Selenium
         run: |
           timeout 30 bash -c 'until curl -s http://localhost:4444/wd/hub/status | grep -q "ready"; do sleep 1; done'
           echo "¡Selenium está listo!"
 
-      # Paso 9: Ejecutar tests de interfaz con Selenium
       - name: Ejecutar tests de interfaz
         env:
           SELENIUM_REMOTE_URL: http://localhost:4444/wd/hub
           BASE_URL: http://host.docker.internal:5000
         run: |
-          # Verificar si existen tests de selenium
           if pytest --collect-only -m selenium 2>&1 | grep -q "no tests ran"; then
-            echo "⚠️ No se encontraron tests de interfaz con el marcador 'selenium'"
-            echo "Omitiendo tests de interfaz - implementa tests con @pytest.mark.selenium"
+            echo "⚠️ No se encontraron tests con @pytest.mark.selenium"
             exit 0
           else
             pytest -m selenium -v --tb=short
           fi
         continue-on-error: true
 
-      # Paso 10: Subir capturas de pantalla en caso de fallo
-      - name: Subir capturas de pantalla de tests
+      - name: Subir capturas de pantalla
         uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -128,20 +120,14 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
-      # Paso 11: Generar resumen de tests de interfaz
       - name: Resumen de tests de interfaz
         if: always()
         run: |
           echo "## 🌐 Resultados de Tests de Interfaz (Selenium)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Configuración" >> $GITHUB_STEP_SUMMARY
-          echo "- Navegador: Chrome (Selenium Standalone)" >> $GITHUB_STEP_SUMMARY
-          echo "- URL de la aplicación: http://localhost:5000" >> $GITHUB_STEP_SUMMARY
           echo "- Selenium Grid: http://localhost:4444" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "💡 **Consejo:** Añade tests con \`@pytest.mark.selenium\` para ejecutar tests de interfaz" >> $GITHUB_STEP_SUMMARY
+          echo "💡 Añade tests con @pytest.mark.selenium" >> $GITHUB_STEP_SUMMARY
 
-      # Paso 12: Detener aplicación Flask
       - name: Detener aplicación Flask
         if: always()
         run: |

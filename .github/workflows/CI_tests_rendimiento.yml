@@ -14,7 +14,6 @@ jobs:
     name: Locust
     runs-on: ubuntu-24.04
 
-    # Variables de entorno globales
     env:
       POSTGRES_ROOT_PASSWORD: materialhub_root_password
       POSTGRES_DATABASE: materialhub_test
@@ -29,7 +28,6 @@ jobs:
       SECRET_KEY: test-secret-key-for-ci
 
     services:
-      # Contenedor de servicio PostgreSQL
       postgres:
         image: postgres:17
         env:
@@ -46,52 +44,50 @@ jobs:
 
     steps:
 
-      # Paso 1: Obtener el código del repositorio
       - name: Obtener código
         uses: actions/checkout@v5
 
-      # Paso 2: Configurar entorno Python (versión 3.12)
       - name: Configurar Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
 
-      # Paso 3: Eliminar modo editable local para dependencia rosemary
       - name: Eliminar rosemary en modo editable
         run: sed -i '/rosemary @ file:\/\/\/app/d' requirements.txt
 
-      # Paso 4: Instalar dependencias de Python
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -e .
 
-      # Paso 5: Inicializar base de datos
+      # --- FIX IMPORTANTE ---
+      - name: Instalar PostgreSQL 17 client
+        run: |
+          sudo apt update
+          sudo apt install -y postgresql-client-17
+      # -----------------------
+
       - name: Configurar base de datos
         run: |
           rosemary db:upgrade
           rosemary db:seed
 
-      # Paso 6: Iniciar aplicación Flask en segundo plano
       - name: Iniciar aplicación Flask
         run: |
           flask run --host=0.0.0.0 --port=5000 &
           echo $! > flask.pid
           sleep 10
 
-      # Paso 7: Verificar que la aplicación está funcionando
       - name: Verificación de salud
         run: |
           curl -f http://localhost:5000/ || exit 1
           echo "¡Aplicación funcionando correctamente!"
 
-      # Paso 8: Crear directorio de reportes
       - name: Crear directorio de reportes
         run: mkdir -p reports
 
-      # Paso 9: Ejecutar tests de rendimiento con Locust (modo headless)
       - name: Ejecutar tests de carga con Locust
         run: |
           locust --host=http://localhost:5000 \
@@ -104,7 +100,6 @@ jobs:
                  --exit-code-on-error 0
         continue-on-error: true
 
-      # Paso 10: Subir reporte HTML de Locust
       - name: Subir reporte HTML de Locust
         uses: actions/upload-artifact@v4
         if: always()
@@ -113,7 +108,6 @@ jobs:
           path: reports/
           retention-days: 30
 
-      # Paso 11: Generar resumen de rendimiento
       - name: Resumen de tests de carga
         if: always()
         run: |
@@ -124,21 +118,19 @@ jobs:
           echo "- Tasa de aparición: 5 usuarios/s" >> $GITHUB_STEP_SUMMARY
           echo "- Duración: 60s" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
           if [ -f reports/estadisticas_locust_stats.csv ]; then
             echo "### Resumen de Resultados" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
             head -n 10 reports/estadisticas_locust_stats.csv >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           fi
-
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📊 [Descargar reporte HTML completo](../artifacts)" >> $GITHUB_STEP_SUMMARY
 
-      # Paso 12: Detener aplicación Flask
       - name: Detener aplicación Flask
         if: always()
         run: |
           if [ -f flask.pid ]; then
             kill $(cat flask.pid) || true
           fi
+

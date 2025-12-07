@@ -67,29 +67,36 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
 
-      # Step 5: Initialize database
+      # Step 5: Install PostgreSQL 17 client (fix pg_dump version mismatch)
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo apt update
+          sudo apt install -y postgresql-client-17
+
+      # Step 6: Initialize database
       - name: Setup database
         run: |
           rosemary db:upgrade
           rosemary db:seed
 
-      # Step 6: Start Flask application in background
+      # Step 7: Start Flask application in background
       - name: Start Flask application
         run: |
           flask run --host=0.0.0.0 --port=5000 &
           echo $! > flask.pid
           sleep 5
 
-      # Step 7: Verify application is running
+      # Step 8: Verify application is running
       - name: Health check
         run: |
           curl -f http://localhost:5000/ || exit 1
           echo "Application is running successfully!"
 
-      # Step 8: Stop Flask application
+      # Step 9: Stop Flask application
       - name: Stop Flask application
         if: always()
         run: |
           if [ -f flask.pid ]; then
             kill $(cat flask.pid) || true
           fi
+
