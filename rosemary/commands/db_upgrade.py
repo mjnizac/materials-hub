@@ -82,9 +82,23 @@ def db_upgrade(no_backup):
                 db_user = os.getenv("POSTGRES_USER", "postgres")
                 db_password = os.getenv("POSTGRES_PASSWORD", "")
 
+                # Try to find pg_dump compatible with server version
+                # Common paths for different PostgreSQL versions
+                pg_dump_paths = [
+                    "pg_dump",  # System default
+                    "/usr/lib/postgresql/17/bin/pg_dump",  # PostgreSQL 17
+                    "/usr/lib/postgresql/16/bin/pg_dump",  # PostgreSQL 16
+                ]
+
+                pg_dump_cmd = "pg_dump"
+                for path in pg_dump_paths:
+                    if os.path.exists(path) or path == "pg_dump":
+                        pg_dump_cmd = path
+                        break
+
                 # Create pg_dump command
                 dump_cmd = [
-                    "pg_dump",
+                    pg_dump_cmd,
                     f"--host={db_host}",
                     f"--port={db_port}",
                     f"--username={db_user}",
@@ -112,8 +126,15 @@ def db_upgrade(no_backup):
                         + click.style(f" ({size_mb:.2f} MB)", fg="white")
                     )
                 else:
+                    error_msg = result.stderr.decode()
                     click.echo(click.style(" ⚠", fg="yellow"))
-                    click.echo(click.style(f"  Warning: Backup failed - {result.stderr.decode()}", fg="yellow"))
+                    click.echo(click.style(f"  Warning: Backup failed - {error_msg}", fg="yellow"))
+
+                    # Check if it's a version mismatch and provide helpful message
+                    if "server version mismatch" in error_msg:
+                        click.echo(click.style("\n  Tip: Install matching PostgreSQL client tools:", fg="cyan"))
+                        click.echo(click.style("    sudo apt install postgresql-client-17", fg="cyan"))
+
                     if not click.confirm("  Continue without backup?", default=False):
                         return
                     backup_file = None

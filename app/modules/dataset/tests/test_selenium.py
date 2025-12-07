@@ -21,7 +21,7 @@ def wait_for_page_to_load(driver, timeout: int = 15):
     )
 
 
-def login(driver, host: str, email: str = "user1@example.com", password: str = "1234"):
+def login(driver, host: str, email: str = "user1@example.com", password: str = "test1234"):
     """
     Hace login en /login y verifica que no nos quedamos en la página de login.
     """
@@ -594,6 +594,13 @@ def test_edit_material_record_updates_value_in_view():
             "Tras guardar el registro editado no hemos vuelto a la vista del dataset.\n"
             f"URL actual: {current_url}"
         )
+
+        # Dar tiempo para que la página se actualice completamente
+        time.sleep(2)
+
+        # Refrescar la página para asegurarnos de que tenemos los datos más recientes
+        driver.refresh()
+        wait_for_page_to_load(driver)
 
         # 7) Comprobar que el registro con ese material_name muestra el nuevo valor
         updated_records = WebDriverWait(driver, 15).until(
