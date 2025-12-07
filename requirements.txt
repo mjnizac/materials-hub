@@ -88,7 +88,7 @@ pycparser==2.22
 pydot==4.0.1
 pyflakes==3.4.0
 Pygments==2.19.2
-PyMySQL==1.1.1
+psycopg2-binary==2.9.10
 pyOpenSSL==25.1.0
 pyparsing==3.2.3
 PySocks==1.7.1

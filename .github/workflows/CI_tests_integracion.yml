@@ -1,7 +1,7 @@
 # ----------------------------------------------------------------------------
 # Workflow de Tests de Integración
 # Este workflow ejecuta tests de integración en cada push a cualquier rama.
-# Configura un contenedor de servicio MariaDB y variables de entorno.
+# Configura un contenedor de servicio PostgreSQL y variables de entorno.
 # ----------------------------------------------------------------------------
 
 name: Tests de Integración
@@ -16,28 +16,27 @@ jobs:
 
     # Variables de entorno globales compartidas entre servicios y pasos
     env:
-      MARIADB_ROOT_PASSWORD: uvlhub_root_password
-      MARIADB_DATABASE: uvlhubdb_test
-      MARIADB_TEST_DATABASE: uvlhubdb_test
-      MARIADB_USER: uvlhub_user
-      MARIADB_PASSWORD: uvlhub_password
-      MARIADB_HOSTNAME: 127.0.0.1
-      MARIADB_PORT: 3306
+      POSTGRES_ROOT_PASSWORD: materialhub_root_password
+      POSTGRES_DATABASE: materialhub_test
+      POSTGRES_TEST_DATABASE: materialhub_test
+      POSTGRES_USER: materialhub_user
+      POSTGRES_PASSWORD: materialhub_password
+      POSTGRES_HOSTNAME: 127.0.0.1
+      POSTGRES_PORT: 5432
       FLASK_ENV: testing
 
     services:
-      # Contenedor de servicio MariaDB para tests
-      mariadb:
-        image: mariadb:12.0.2
+      # Contenedor de servicio PostgreSQL para tests
+      postgres:
+        image: postgres:17
         env:
-          MARIADB_ROOT_PASSWORD: ${{ env.MARIADB_ROOT_PASSWORD }}
-          MARIADB_DATABASE: ${{ env.MARIADB_DATABASE }}
-          MARIADB_USER: ${{ env.MARIADB_USER }}
-          MARIADB_PASSWORD: ${{ env.MARIADB_PASSWORD }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DATABASE }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
         ports:
-          - 3306:3306
+          - 5432:5432
         options: >-
-          --health-cmd="mariadb-admin ping -u root -p$MARIADB_ROOT_PASSWORD"
+          --health-cmd="pg_isready -U $POSTGRES_USER"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3

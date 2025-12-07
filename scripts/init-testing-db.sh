@@ -13,11 +13,11 @@
 # ---------------------------------------------------------------------------
 
 
-echo "(testing) Hostname: $MARIADB_HOSTNAME, Port: $MARIADB_PORT, User: $MARIADB_USER, Test DB: $MARIADB_TEST_DATABASE"
+echo "(testing) Hostname: $POSTGRES_HOSTNAME, Port: $POSTGRES_PORT, User: $POSTGRES_USER, Test DB: $POSTGRES_TEST_DATABASE"
 
-echo "MariaDB is up - creating test database if it doesn't exist"
+echo "PostgreSQL is up - creating test database if it doesn't exist"
 
 # Create the test database if it does not exist
-mariadb -h "$MARIADB_HOSTNAME" -P "$MARIADB_PORT" -u root -p"$MARIADB_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`${MARIADB_TEST_DATABASE}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON \`${MARIADB_TEST_DATABASE}\`.* TO '$MARIADB_USER'@'%'; FLUSH PRIVILEGES;"
+PGPASSWORD="$POSTGRES_ROOT_PASSWORD" psql -h "$POSTGRES_HOSTNAME" -p "$POSTGRES_PORT" -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$POSTGRES_TEST_DATABASE'" | grep -q 1 || PGPASSWORD="$POSTGRES_ROOT_PASSWORD" psql -h "$POSTGRES_HOSTNAME" -p "$POSTGRES_PORT" -U postgres -c "CREATE DATABASE \"$POSTGRES_TEST_DATABASE\" ENCODING 'UTF8';"
 
-echo "Test database created and privileges granted"
+echo "Test database created"

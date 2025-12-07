@@ -13,12 +13,12 @@
 # ---------------------------------------------------------------------------
 
 echo "Starting wait-for-db.sh"
-echo "Hostname: $MARIADB_HOSTNAME, Port: $MARIADB_PORT, User: $MARIADB_USER"
+echo "Hostname: $POSTGRES_HOSTNAME, Port: $POSTGRES_PORT, User: $POSTGRES_USER"
 
-while ! mariadb -h "$MARIADB_HOSTNAME" -P "$MARIADB_PORT" -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" -e 'SELECT 1'; do
-  echo "MariaDB is unavailable - sleeping"
+while ! PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$POSTGRES_HOSTNAME" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -c 'SELECT 1' > /dev/null 2>&1; do
+  echo "PostgreSQL is unavailable - sleeping"
   sleep 1
 done
 
-echo "MariaDB is up - executing command"
+echo "PostgreSQL is up - executing command"
 exec "$@"

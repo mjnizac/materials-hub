@@ -34,14 +34,14 @@ Desarrollado por **DiversoLab** en la Universidad de Sevilla.
 Antes de comenzar, asegúrate de tener instalado:
 
 - **Python 3.9+**
-- **MariaDB/MySQL** (10.5+)
+- **PostgreSQL** (14+)
 - **Node.js y npm** (para dependencias frontend)
 - **Git**
 
 ### Herramientas Opcionales
 
 - **Docker** (si prefieres usar contenedores)
-- **mysqldump** (para backups automáticos de BD)
+- **pg_dump** (para backups automáticos de BD)
 
 ---
 
@@ -96,11 +96,12 @@ DOMAIN=localhost
 SECRET_KEY=tu-clave-secreta-aqui
 
 # Base de Datos
-MARIADB_HOSTNAME=localhost
-MARIADB_PORT=3306
-MARIADB_USER=root
-MARIADB_PASSWORD=tu-password
-MARIADB_DATABASE=uvlhubdb
+POSTGRES_HOSTNAME=localhost
+POSTGRES_PORT=5432
+POSTGRES_USER=materialhub_user
+POSTGRES_PASSWORD=tu-password
+POSTGRES_DATABASE=materialhub
+POSTGRES_TEST_DATABASE=materialhub_test
 
 # Directorio de trabajo
 WORKING_DIR=
@@ -113,15 +114,34 @@ ZENODO_API_TOKEN=tu-token-aqui
 
 ### 5. Configurar Base de Datos
 
-Asegúrate de que MariaDB/MySQL esté ejecutándose y crea la base de datos:
+Asegúrate de que PostgreSQL esté ejecutándose y crea la base de datos:
 
 ```bash
-mysql -u root -p
+# Conectar a PostgreSQL
+psql -U postgres
 ```
 
 ```sql
-CREATE DATABASE uvlhubdb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-EXIT;
+-- Crear usuario
+CREATE USER materialhub_user WITH PASSWORD 'tu-password';
+
+-- Crear base de datos principal
+CREATE DATABASE materialhub ENCODING 'UTF8';
+
+-- Crear base de datos de tests
+CREATE DATABASE materialhub_test ENCODING 'UTF8';
+
+-- Dar permisos
+GRANT ALL PRIVILEGES ON DATABASE materialhub TO materialhub_user;
+GRANT ALL PRIVILEGES ON DATABASE materialhub_test TO materialhub_user;
+
+-- En PostgreSQL 15+, también necesitas dar permisos en el schema
+\c materialhub
+GRANT ALL ON SCHEMA public TO materialhub_user;
+\c materialhub_test
+GRANT ALL ON SCHEMA public TO materialhub_user;
+
+\q
 ```
 
 ### 6. Inicializar Base de Datos con Datos de Prueba
@@ -155,7 +175,7 @@ Database setup completed successfully!
 rosemary db:status
 
 # Deberías ver:
-# Connection: ✓ Connected to 'uvlhubdb'
+# Connection: ✓ Connected to 'materialhub'
 # Migration: xxx (head)
 # Tables: 20
 # etc.
@@ -205,7 +225,7 @@ rosemary db:seed
 # Resetear base de datos (¡cuidado!)
 rosemary db:reset -y
 
-# Abrir consola MariaDB
+# Abrir consola PostgreSQL
 rosemary db:console
 ```
 
@@ -389,8 +409,8 @@ rosemary make:module mi_modulo
 ### Error de Conexión a Base de Datos
 
 ```bash
-# Verificar que MariaDB esté ejecutándose
-sudo systemctl status mariadb
+# Verificar que PostgreSQL esté ejecutándose
+sudo systemctl status postgresql
 
 # Verificar credenciales en .env
 rosemary env
