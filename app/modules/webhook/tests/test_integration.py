@@ -185,8 +185,8 @@ def test_webhook_service_restart_container(test_client):
 def test_webhook_model_creation(test_client):
     """Test creating webhook model directly."""
     with test_client.application.app_context():
-        from app.modules.webhook.models import Webhook
         from app import db
+        from app.modules.webhook.models import Webhook
 
         webhook = Webhook()
         db.session.add(webhook)

@@ -152,8 +152,8 @@ def test_authenticated_user_redirected_from_signup(test_client, integration_test
 def test_user_password_hashing(test_client):
     """Test that user passwords are hashed."""
     with test_client.application.app_context():
-        from app.modules.auth.models import User
         from app import db
+        from app.modules.auth.models import User
 
         user = User(email="hashtest@example.com")
         user.set_password("mypassword123")

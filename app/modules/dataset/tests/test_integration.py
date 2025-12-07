@@ -481,8 +481,8 @@ def test_ds_metadata_service_initialization(test_client):
 def test_author_service_get_by_id(test_client):
     """Test AuthorService get_by_id."""
     with test_client.application.app_context():
-        from app.modules.dataset.services import AuthorService
         from app.modules.dataset.repositories import AuthorRepository
+        from app.modules.dataset.services import AuthorService
 
         service = AuthorService()
         repo = AuthorRepository()
