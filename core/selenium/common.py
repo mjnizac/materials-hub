@@ -85,5 +85,8 @@ def initialize_driver():
 
 def close_driver(driver):
     """Safely quit the browser."""
-    if driver:
+    try:
         driver.quit()
+    except Exception as e:
+        # No queremos que un fallo al cerrar el driver marque el test como error
+        print(f"[WARN] Error al cerrar el driver: {e}")

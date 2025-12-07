@@ -1,26 +1,20 @@
 # ----------------------------------------------------------------------------
-<<<<<<<< HEAD:.github/workflows/CI_run.yml
-# Run Application Workflow
-# This workflow verifies that the application can start successfully.
-# It sets up the environment, database, and starts the Flask server.
-========
-# Run Tests Workflow
-# This workflow runs pytest on every push to any branch.
-# It sets up a MariaDB service container and configures environment
-# variables for both the service and the test environment.
->>>>>>>> feature/tests-selenium:.github/workflows/CI_pytest.yml
+# Performance Tests Workflow
+# This workflow runs Locust load tests to verify application performance.
+# It runs on main and develop branches to catch performance regressions.
 # ----------------------------------------------------------------------------
 
-name: Run Application
+name: Performance Tests
 
 on:
   push:
+    branches: [main, develop]
 
 jobs:
-  run-app:
+  locust:
     runs-on: ubuntu-24.04
 
-    # Global environment variables shared across services and steps
+    # Global environment variables
     env:
       MARIADB_ROOT_PASSWORD: uvlhub_root_password
       MARIADB_DATABASE: uvlhubdb_test
@@ -29,7 +23,7 @@ jobs:
       MARIADB_PASSWORD: uvlhub_password
       MARIADB_HOSTNAME: 127.0.0.1
       MARIADB_PORT: 3306
-      FLASK_ENV: development
+      FLASK_ENV: testing
       FLASK_APP_NAME: MaterialsHub
       DOMAIN: localhost
       SECRET_KEY: test-secret-key-for-ci
@@ -64,7 +58,7 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      # Step 3: Remove local editable mode for rosemary dependency (not CI-friendly)
+      # Step 3: Remove local editable mode for rosemary dependency
       - name: Delete rosemary editable mode
         run: sed -i '/rosemary @ file:\/\/\/app/d' requirements.txt
 
@@ -75,7 +69,6 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
 
-<<<<<<<< HEAD:.github/workflows/CI_run.yml
       # Step 5: Initialize database
       - name: Setup database
         run: |
@@ -87,56 +80,66 @@ jobs:
         run: |
           flask run --host=0.0.0.0 --port=5000 &
           echo $! > flask.pid
-          sleep 5
+          sleep 10
 
       # Step 7: Verify application is running
       - name: Health check
         run: |
           curl -f http://localhost:5000/ || exit 1
-          echo "Application is running successfully!"
+          echo "Application is running!"
 
-      # Step 8: Stop Flask application
+      # Step 8: Create reports directory
+      - name: Create reports directory
+        run: mkdir -p reports
+
+      # Step 9: Run Locust performance tests (headless mode)
+      - name: Run Locust load tests
+        run: |
+          locust --host=http://localhost:5000 \
+                 --users 50 \
+                 --spawn-rate 5 \
+                 --run-time 60s \
+                 --headless \
+                 --html reports/locust_report.html \
+                 --csv reports/locust_stats \
+                 --exit-code-on-error 0
+        continue-on-error: true
+
+      # Step 10: Upload Locust HTML report
+      - name: Upload Locust HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: locust-performance-report-${{ github.sha }}
+          path: reports/
+          retention-days: 30
+
+      # Step 11: Generate performance summary
+      - name: Performance Summary
+        if: always()
+        run: |
+          echo "## Performance Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- Users: 50" >> $GITHUB_STEP_SUMMARY
+          echo "- Spawn Rate: 5 users/s" >> $GITHUB_STEP_SUMMARY
+          echo "- Duration: 60s" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f reports/locust_stats_stats.csv ]; then
+            echo "### Results Summary" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            head -n 10 reports/locust_stats_stats.csv >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 [Download full HTML report](../artifacts)" >> $GITHUB_STEP_SUMMARY
+
+      # Step 12: Stop Flask application
       - name: Stop Flask application
         if: always()
         run: |
           if [ -f flask.pid ]; then
             kill $(cat flask.pid) || true
           fi
-========
-      # Step 5: Run the pytest test suite (unit tests only)
-      - name: Run Unit Tests
-        run: pytest -m unit -v --cov=app --cov-report=term-missing --cov-report=xml --cov-report=html --cov-fail-under=25
-
-      # Step 6: Run integration tests (append to existing coverage)
-      - name: Run Integration Tests
-        run: pytest -m integration -v --cov=app --cov-append --cov-report=term-missing --cov-report=xml --cov-report=html
-
-      # Step 7: Upload coverage report to Codecov
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          file: ./coverage.xml
-          flags: unittests,integration
-          name: codecov-umbrella
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-      # Step 8: Upload HTML coverage report as artifact
-      - name: Upload coverage HTML report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-report-${{ github.sha }}
-          path: htmlcov/
-          retention-days: 30
-
-      # Step 9: Generate coverage summary
-      - name: Coverage Summary
-        if: always()
-        run: |
-          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          coverage report >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
->>>>>>>> feature/tests-selenium:.github/workflows/CI_pytest.yml

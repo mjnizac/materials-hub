@@ -10,10 +10,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from core.environment.host import get_host_for_selenium_testing
 from core.selenium.common import close_driver, initialize_driver
 
-
 # ==============================
 # HELPERS GENERALES
 # ==============================
+
 
 def wait_for_page_to_load(driver, timeout: int = 15):
     WebDriverWait(driver, timeout).until(
@@ -441,9 +441,8 @@ def test_csv_modal_displays_csv_contents():
 
     finally:
         close_driver(driver)
-        
-        
-        
+
+
 def test_materials_statistics_page_loads():
     """
     Flujo: página de estadísticas de un Materials Dataset.
@@ -545,7 +544,6 @@ def test_edit_material_record_updates_value_in_view():
         assert material_name, "El primer registro no tiene data-material-name"
 
         # 4) Localizar y pulsar el botón de editar de ese registro
-        # En tu template: href="{{ url_for('dataset.edit_material_record', dataset_id=dataset.id, record_id=record.id) }}"
         edit_link = first_record.find_element(
             By.XPATH,
             ".//a[contains(@href, '/materials/') and contains(@href, '/edit')]",
@@ -623,7 +621,8 @@ def test_edit_material_record_updates_value_in_view():
 
     finally:
         close_driver(driver)
-        
+
+
 def test_delete_material_record_removes_it_from_view():
     """
     Flujo: borrado de un MaterialRecord.
