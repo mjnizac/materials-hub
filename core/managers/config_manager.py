@@ -1,6 +1,7 @@
 import os
 import secrets
 
+
 class ConfigManager:
     def __init__(self, app):
         self.app = app

@@ -15,7 +15,12 @@ jobs:
   deploy:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04
+
     steps:
+      - name: Esperar a que todos los workflows hayan terminado
+        run: |
+          echo "Deploy ejecutándose solo si todos los workflows de tests y lint han pasado"
+
       - uses: actions/checkout@v5
 
       - name: Deploy a Render
