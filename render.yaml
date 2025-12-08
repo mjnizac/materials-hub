@@ -34,5 +34,3 @@ databases:
   - name: materialhub-db
     plan: free
     databaseName: materialhub
-    user: materialhub_user
-    password: materialhub_password
