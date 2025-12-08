@@ -9,7 +9,4 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 pip install -e .
 
-# Setup de la base de datos y seeders (con -y para evitar confirmación interactiva)
-rosemary db:setup -y
-
-echo "✅ build.sh finalizado"
+echo "✅ build.sh finalizado - dependencias instaladas"
