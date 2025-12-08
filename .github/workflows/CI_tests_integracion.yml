@@ -14,7 +14,7 @@ jobs:
       POSTGRES_TEST_DATABASE: materialhub_test
       POSTGRES_USER: materialhub_user
       POSTGRES_PASSWORD: materialhub_password
-      POSTGRES_HOSTNAME: 127.0.0.1
+      POSTGRES_HOSTNAME: postgres
       POSTGRES_PORT: 5432
       FLASK_ENV: testing
 
