@@ -15,6 +15,11 @@ on:
     branches:
       - main
 
+# Solo un build/push a la vez
+concurrency:
+  group: dockerhub-publish-main
+  cancel-in-progress: false
+
 jobs:
   build-and-push:
     runs-on: ubuntu-24.04

@@ -1,46 +1,34 @@
 # ----------------------------------------------------------------------------
 # Workflow Checkpoint - All Tests Passed
-# Este workflow solo se ejecuta cuando todos los workflows de CI han pasado.
+# Este workflow revisa periódicamente si todos los workflows de CI han pasado.
 # Actúa como checkpoint antes del deploy a Render.
+# Se ejecuta cada 5 minutos para evitar disparos múltiples.
 # ----------------------------------------------------------------------------
 
 name: All Tests Passed
 
 on:
-  workflow_run:
-    workflows:
-      - "Tests Unitarios"
-      - "Tests de Integración"
-      - "Tests de Interfaz"
-      - "Tests de Carga"
-      - "Python Lint"
-      - "Run Application"
-      - "Commits Syntax Checker"
-    types:
-      - completed
-    branches:
-      - main
+  schedule:
+    - cron: '*/5 * * * *'  # Cada 5 minutos
+  workflow_dispatch:  # Permitir ejecución manual
 
-# Prevenir ejecuciones múltiples - solo la última se ejecutará
+# Solo una ejecución a la vez
 concurrency:
-  group: all-tests-passed-${{ github.sha }}
-  cancel-in-progress: true
+  group: all-tests-passed-main
+  cancel-in-progress: false
 
 jobs:
   check-all-passed:
     runs-on: ubuntu-24.04
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - name: Esperar a que otros workflows terminen
-        run: |
-          echo "⏳ Esperando 30 segundos para que otros workflows terminen..."
-          sleep 30
-
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 10  # Últimos 10 commits
 
-      - name: Verificar estado de todos los workflows
+      - name: Verificar último commit y workflows
         uses: actions/github-script@v7
         with:
           script: |
@@ -54,51 +42,94 @@ jobs:
               'Commits Syntax Checker'
             ];
 
+            // Obtener el último commit de main
+            const { data: mainBranch } = await github.rest.repos.getBranch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: 'main'
+            });
+            const latestSha = mainBranch.commit.sha;
+
+            console.log(`📋 Revisando workflows para commit: ${latestSha}`);
+
+            // Verificar si "Auto Release" ya se ejecutó para este commit
+            // (lo cual significa que ya pasamos por aquí)
+            const { data: releaseRuns } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'CD_release.yml',
+              per_page: 5
+            });
+
+            const alreadyProcessed = releaseRuns.workflow_runs.some(
+              run => run.head_sha === latestSha && run.status === 'completed'
+            );
+
+            if (alreadyProcessed) {
+              console.log('✅ Este commit ya fue procesado (Auto Release completado)');
+              console.log('No es necesario hacer nada');
+              return;
+            }
+
+            // Obtener todos los workflow runs para este commit
             const { data: workflowRuns } = await github.rest.actions.listWorkflowRunsForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
               event: 'push',
               branch: 'main',
-              per_page: 50
+              per_page: 100
             });
 
-            // Filtrar runs del mismo commit
+            // Filtrar runs del commit actual
             const runsForCommit = workflowRuns.workflow_runs.filter(
-              run => run.head_sha === context.sha
+              run => run.head_sha === latestSha
             );
 
-            console.log(`Verificando workflows para commit ${context.sha}`);
+            console.log(`\nEncontrados ${runsForCommit.length} workflow runs para este commit`);
 
-            // Verificar que todos los workflows existan y hayan pasado
+            // Verificar estado de cada workflow requerido
             const workflowStatus = {};
+            let allCompleted = true;
+            let anyFailed = false;
+
             for (const workflowName of workflows) {
               const run = runsForCommit.find(r => r.name === workflowName);
+
               if (!run) {
-                console.log(`⏳ Workflow '${workflowName}' aún no ha empezado`);
-                workflowStatus[workflowName] = 'pending';
+                console.log(`⏳ Workflow '${workflowName}' - No encontrado (aún no empezó)`);
+                workflowStatus[workflowName] = 'not_started';
+                allCompleted = false;
               } else if (run.status !== 'completed') {
-                console.log(`⏳ Workflow '${workflowName}' aún está ejecutándose`);
-                workflowStatus[workflowName] = 'running';
+                console.log(`⏳ Workflow '${workflowName}' - Estado: ${run.status}`);
+                workflowStatus[workflowName] = run.status;
+                allCompleted = false;
               } else if (run.conclusion !== 'success') {
-                console.log(`❌ Workflow '${workflowName}' falló con: ${run.conclusion}`);
+                console.log(`❌ Workflow '${workflowName}' - Conclusión: ${run.conclusion}`);
                 workflowStatus[workflowName] = run.conclusion;
+                anyFailed = true;
               } else {
-                console.log(`✅ Workflow '${workflowName}' pasó exitosamente`);
+                console.log(`✅ Workflow '${workflowName}' - Pasó exitosamente`);
                 workflowStatus[workflowName] = 'success';
               }
             }
 
-            // Verificar si todos pasaron
-            const allPassed = Object.values(workflowStatus).every(status => status === 'success');
+            console.log('\n📊 Resumen de estados:');
+            console.log(workflowStatus);
 
-            if (!allPassed) {
-              console.log('\n❌ No todos los workflows han pasado aún');
-              console.log('Estado actual:', workflowStatus);
-              core.setFailed('Esperando a que todos los workflows pasen');
-            } else {
-              console.log('\n✅ ¡Todos los workflows han pasado!');
-              console.log('Procediendo con el deploy...');
+            if (anyFailed) {
+              console.log('\n❌ Algunos workflows fallaron - no se procederá');
+              core.setFailed('Tests fallaron');
+              return;
             }
+
+            if (!allCompleted) {
+              console.log('\n⏳ Algunos workflows aún no completaron - esperando...');
+              console.log('Este workflow se ejecutará de nuevo en 5 minutos');
+              return;
+            }
+
+            console.log('\n✅ ¡Todos los workflows completaron exitosamente!');
+            console.log('Procediendo con el siguiente paso del pipeline...');
 
       - name: Todos los checks pasaron
         run: echo "✅ Todos los workflows de CI/CD han pasado exitosamente"
