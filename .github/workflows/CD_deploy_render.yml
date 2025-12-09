@@ -9,6 +9,11 @@ on:
     branches:
       - main
 
+# Solo un deploy a la vez
+concurrency:
+  group: deploy-render-main
+  cancel-in-progress: false
+
 jobs:
   deploy:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}

@@ -58,6 +58,12 @@ jobs:
               continue
             fi
 
+            # Ignorar commits de bump de versión automáticos
+            if echo "$message" | grep -Eq "^Bump version to"; then
+              echo "⏭️  \`${hash:0:7}\` - $message (version bump)" >> $GITHUB_STEP_SUMMARY
+              continue
+            fi
+
             # Ignorar commits con emojis al inicio (commits antiguos ya validados)
             if echo "$message" | grep -Eq "^[[:space:]]*(✨|🐛|📝|🔧|♻️|🎨|⚡|🔥|✅|🚀)"; then
               echo "⏭️  \`${hash:0:7}\` - $message (legacy commit)" >> $GITHUB_STEP_SUMMARY
