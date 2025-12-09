@@ -17,7 +17,93 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      
-      # Step to validate commit messages following the Conventional Commits standard
-      - name: Validate commit messages
-        uses: webiny/action-conventional-commits@v1.3.0
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages with detailed feedback
+        run: |
+          echo "## 📝 Validando mensajes de commits" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Tipos permitidos
+          ALLOWED_TYPES="^(feat|fix|docs)(\(.+\))?!?: .+"
+
+          # Obtener commits del push
+          if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            # Primer push a la rama
+            COMMITS=$(git log --format="%H|%s" -n 10)
+          else
+            COMMITS=$(git log --format="%H|%s" ${{ github.event.before }}..${{ github.event.after }})
+          fi
+
+          INVALID_COMMITS=""
+          VALID_COUNT=0
+          INVALID_COUNT=0
+
+          echo "### Commits analizados:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          while IFS='|' read -r hash message; do
+            # Ignorar commits automáticos
+            if echo "$message" | grep -q "\[skip ci\]"; then
+              echo "⏭️  \`${hash:0:7}\` - $message (skip ci)" >> $GITHUB_STEP_SUMMARY
+              continue
+            fi
+
+            # Ignorar commits con emojis al inicio (commits antiguos ya validados)
+            if echo "$message" | grep -Eq "^[[:space:]]*(✨|🐛|📝|🔧|♻️|🎨|⚡|🔥|✅|🚀)"; then
+              echo "⏭️  \`${hash:0:7}\` - $message (legacy commit)" >> $GITHUB_STEP_SUMMARY
+              continue
+            fi
+
+            # Ignorar commits tipo "chore:" anteriores (legacy)
+            if echo "$message" | grep -Eq "^chore:"; then
+              echo "⏭️  \`${hash:0:7}\` - $message (legacy commit)" >> $GITHUB_STEP_SUMMARY
+              continue
+            fi
+
+            if echo "$message" | grep -Eq "$ALLOWED_TYPES"; then
+              echo "✅ \`${hash:0:7}\` - $message" >> $GITHUB_STEP_SUMMARY
+              VALID_COUNT=$((VALID_COUNT + 1))
+            else
+              echo "❌ \`${hash:0:7}\` - **$message**" >> $GITHUB_STEP_SUMMARY
+              INVALID_COMMITS="$INVALID_COMMITS\n  - [$hash] $message"
+              INVALID_COUNT=$((INVALID_COUNT + 1))
+            fi
+          done <<< "$COMMITS"
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Resumen:** ✅ $VALID_COUNT válido(s) | ❌ $INVALID_COUNT inválido(s)" >> $GITHUB_STEP_SUMMARY
+
+          if [ $INVALID_COUNT -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Formato Incorrecto Detectado" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Los siguientes commits NO siguen el formato Conventional Commits:" >> $GITHUB_STEP_SUMMARY
+            echo "$INVALID_COMMITS" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📋 Formato Correcto" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Usa uno de estos formatos:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "feat: añadir nueva funcionalidad" >> $GITHUB_STEP_SUMMARY
+            echo "fix: corregir bug en login" >> $GITHUB_STEP_SUMMARY
+            echo "docs: actualizar documentación" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Con scope opcional:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "feat(auth): añadir OAuth2" >> $GITHUB_STEP_SUMMARY
+            echo "fix(api): corregir endpoint" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+
+            echo "❌ Commits con formato incorrecto detectados"
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Todos los commits siguen el formato correcto" >> $GITHUB_STEP_SUMMARY

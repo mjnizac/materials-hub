@@ -1,6 +1,7 @@
 import os
 
 from dotenv import load_dotenv
+from flasgger import Swagger
 from flask import Flask
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -38,6 +39,34 @@ def create_app(config_name="development"):
     from app.modules.dataset import init_api
 
     init_api()
+
+    # Initialize Swagger/OpenAPI documentation
+    swagger_config = {
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": "apispec",
+                "route": "/apispec.json",
+                "rule_filter": lambda rule: True,
+                "model_filter": lambda tag: True,
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/apidocs/",
+    }
+    swagger_template = {
+        "swagger": "2.0",
+        "info": {
+            "title": "Materials Hub API",
+            "description": "API documentation for Materials Hub platform",
+            "version": get_app_version(),
+        },
+        "host": os.getenv("DOMAIN", "localhost:5000"),
+        "basePath": "/",
+        "schemes": ["https", "http"],
+    }
+    Swagger(app, config=swagger_config, template=swagger_template)
 
     # Register login manager
     from flask_login import LoginManager

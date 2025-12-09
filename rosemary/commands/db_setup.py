@@ -39,7 +39,7 @@ def db_setup(yes):
     # Step 2: Seed the database
     click.echo(click.style("\n[2/2] Seeding database with test data...", fg="blue"))
     ctx = click.get_current_context()
-    ctx.invoke(db_seed, reset=False, yes=True, module=None)
+    ctx.invoke(db_seed, reset=True, yes=True, module=None)
 
     click.echo(click.style("\nDatabase setup completed successfully!", fg="green", bold=True))
     click.echo(

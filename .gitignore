@@ -59,3 +59,8 @@ ubuntu-bionic-18.04-cloudimg-console.log
 
 # Database backups
 backups/*.sql
+
+# ==========================
+# SonarCloud
+# ==========================
+.scannerwork/

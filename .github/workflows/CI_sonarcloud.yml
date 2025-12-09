@@ -1,0 +1,77 @@
+# ----------------------------------------------------------------------------
+# SonarCloud Analysis Workflow
+# This workflow performs static code analysis and tracks code quality metrics.
+# Runs only on main branch for informational purposes (non-blocking).
+# Note: Free tier only supports analyzing the main branch.
+# ----------------------------------------------------------------------------
+
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Code Analysis
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better analysis
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        run: |
+          pytest -m unit -v --cov=app --cov=core --cov=rosemary --cov-report=xml --cov-report=term-missing
+        continue-on-error: true
+
+      - name: Override coverage source paths
+        run: |
+          sed -i 's|<source>/home/runner/work/materials-hub/materials-hub|<source>/github/workspace|g' coverage.xml
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=MaterialHub-Organization_materials-hub
+            -Dsonar.organization=materialhub-organization
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.sources=app,core,rosemary
+            -Dsonar.tests=app/modules
+            -Dsonar.test.inclusions=**/*test*.py
+            -Dsonar.python.version=3.12
+            -Dsonar.exclusions=**/migrations/**,**/tests/**,**/static/**,**/templates/**,**/__pycache__/**,**/venv/**,**/htmlcov/**
+            -Dsonar.coverage.exclusions=**/tests/**,**/test_*.py,**/conftest.py,**/migrations/**,**/seeders.py,rosemary/commands/**
+            -Dsonar.qualitygate.wait=false
+        continue-on-error: true
+
+      - name: Check Quality Gate Status
+        if: always()
+        run: |
+          echo "## 🔍 SonarCloud Analysis Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 **Status**: Analysis completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 View Results" >> $GITHUB_STEP_SUMMARY
+          echo "[Open SonarCloud Dashboard](https://sonarcloud.io/project/overview?id=MaterialHub-Organization_materials-hub)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Note" >> $GITHUB_STEP_SUMMARY
+          echo "This analysis is **informational only** and does not block the pipeline." >> $GITHUB_STEP_SUMMARY
+          echo "Review the metrics and address critical issues when possible." >> $GITHUB_STEP_SUMMARY

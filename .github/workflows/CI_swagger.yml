@@ -1,0 +1,134 @@
+# ----------------------------------------------------------------------------
+# Swagger/OpenAPI Validation Workflow
+# This workflow validates the OpenAPI specification for API documentation.
+# Runs on develop and main branches for informational purposes (non-blocking).
+# ----------------------------------------------------------------------------
+
+name: Swagger Validation
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  swagger-validation:
+    name: Validate OpenAPI Specification
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Swagger validator
+        run: |
+          npm install -g @apidevtools/swagger-cli
+
+      - name: Generate Swagger specification
+        run: |
+          # Start Flask app in background and generate spec
+          export FLASK_APP=app
+          export FLASK_ENV=development
+          export DATABASE_URL=sqlite:///temp_test.db
+          export SECRET_KEY=test-secret-key
+
+          # Start the app in background
+          flask run --host=0.0.0.0 --port=5000 &
+          FLASK_PID=$!
+
+          # Wait for Flask to start (max 30 seconds)
+          echo "Waiting for Flask to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:5000/apispec.json > /dev/null 2>&1; then
+              echo "Flask is ready!"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Flask failed to start in time"
+              kill $FLASK_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep 1
+          done
+
+          # Download the generated spec
+          curl -o swagger.json http://localhost:5000/apispec.json
+
+          # Stop Flask
+          kill $FLASK_PID 2>/dev/null || true
+
+          # Show spec summary
+          echo "Generated Swagger specification:"
+          cat swagger.json | python -m json.tool | head -30
+        continue-on-error: true
+
+      - name: Validate Swagger specification
+        run: |
+          if [ -f swagger.json ]; then
+            echo "Validating Swagger specification..."
+            swagger-cli validate swagger.json
+            VALIDATION_STATUS=$?
+
+            if [ $VALIDATION_STATUS -eq 0 ]; then
+              echo "VALIDATION_RESULT=success" >> $GITHUB_ENV
+              echo "✅ Swagger specification is valid"
+            else
+              echo "VALIDATION_RESULT=failed" >> $GITHUB_ENV
+              echo "❌ Swagger specification has validation errors"
+            fi
+          else
+            echo "VALIDATION_RESULT=error" >> $GITHUB_ENV
+            echo "❌ Could not generate Swagger specification"
+          fi
+        continue-on-error: true
+
+      - name: Generate summary report
+        if: always()
+        run: |
+          echo "## 📋 Swagger/OpenAPI Validation Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ env.VALIDATION_RESULT }}" = "success" ]; then
+            echo "✅ **Status**: Specification is valid" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The OpenAPI specification was successfully validated." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ env.VALIDATION_RESULT }}" = "failed" ]; then
+            echo "⚠️ **Status**: Validation errors found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The OpenAPI specification has validation errors. Please review the logs above." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status**: Could not generate specification" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Failed to generate the Swagger specification. Check the Flask app configuration." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Access Points" >> $GITHUB_STEP_SUMMARY
+          echo "- **Swagger UI**: \`/apidocs/\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **OpenAPI Spec**: \`/apispec.json\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Note" >> $GITHUB_STEP_SUMMARY
+          echo "This validation is **informational only** and does not block the pipeline." >> $GITHUB_STEP_SUMMARY
+          echo "Review any issues and improve API documentation when possible." >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Swagger specification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swagger-specification
+          path: swagger.json
+          if-no-files-found: ignore

@@ -1,5 +1,13 @@
 # Materials Hub
 
+[![Tests](https://github.com/mjnizac/materials-hub/actions/workflows/CI_tests_unitarios.yml/badge.svg)](https://github.com/mjnizac/materials-hub/actions)
+[![Lint](https://github.com/mjnizac/materials-hub/actions/workflows/CI_lint.yml/badge.svg)](https://github.com/mjnizac/materials-hub/actions)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=MaterialHub-Organization_materials-hub&metric=alert_status)](https://sonarcloud.io/dashboard?id=MaterialHub-Organization_materials-hub)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=MaterialHub-Organization_materials-hub&metric=coverage)](https://sonarcloud.io/dashboard?id=MaterialHub-Organization_materials-hub)
+[![Release](https://img.shields.io/github/v/release/mjnizac/materials-hub)](https://github.com/mjnizac/materials-hub/releases)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
+[![License](https://img.shields.io/github/license/mjnizac/materials-hub)](LICENSE)
+
 **Repositorio de datasets de materiales científicos** - Plataforma web para almacenar, compartir y gestionar datasets de propiedades de materiales siguiendo principios de Open Science.
 
 Desarrollado por **DiversoLab** en la Universidad de Sevilla.

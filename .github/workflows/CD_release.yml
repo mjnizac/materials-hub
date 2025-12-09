@@ -110,7 +110,7 @@ jobs:
           echo "" >> RELEASE_NOTES.md
 
           # Features
-          FEATURES=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -E "^- (feat|feature|✨)" || echo "")
+          FEATURES=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -v "\[skip ci\]" | grep -E "^- (feat|feature|✨)" || echo "")
           if [ ! -z "$FEATURES" ]; then
             echo "### ✨ Nuevas Funcionalidades" >> RELEASE_NOTES.md
             echo "$FEATURES" >> RELEASE_NOTES.md
@@ -118,15 +118,15 @@ jobs:
           fi
 
           # Fixes
-          FIXES=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -E "^- (fix|🐛|bugfix)" || echo "")
+          FIXES=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -v "\[skip ci\]" | grep -E "^- (fix|🐛|bugfix)" || echo "")
           if [ ! -z "$FIXES" ]; then
             echo "### 🐛 Correcciones" >> RELEASE_NOTES.md
             echo "$FIXES" >> RELEASE_NOTES.md
             echo "" >> RELEASE_NOTES.md
           fi
 
-          # Other changes
-          OTHER=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -vE "^- (feat|feature|✨|fix|🐛|bugfix)" || echo "")
+          # Other changes (excluding [skip ci] commits)
+          OTHER=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -v "\[skip ci\]" | grep -vE "^- (feat|feature|✨|fix|🐛|bugfix)" || echo "")
           if [ ! -z "$OTHER" ]; then
             echo "### 🔧 Otros Cambios" >> RELEASE_NOTES.md
             echo "$OTHER" >> RELEASE_NOTES.md
@@ -141,6 +141,8 @@ jobs:
           echo "- ✅ Tests de Interfaz" >> RELEASE_NOTES.md
           echo "- ✅ Tests de Carga" >> RELEASE_NOTES.md
           echo "- ✅ Python Lint" >> RELEASE_NOTES.md
+          echo "- ✅ Run Application" >> RELEASE_NOTES.md
+          echo "- ✅ Commits Syntax Checker" >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
           echo "**Changelog Completo**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${NEW_VERSION}" >> RELEASE_NOTES.md
 

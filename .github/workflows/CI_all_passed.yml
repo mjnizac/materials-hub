@@ -14,6 +14,8 @@ on:
       - "Tests de Interfaz"
       - "Tests de Carga"
       - "Python Lint"
+      - "Run Application"
+      - "Commits Syntax Checker"
     types:
       - completed
     branches:
@@ -47,7 +49,9 @@ jobs:
               'Tests de Integración',
               'Tests de Interfaz',
               'Tests de Carga',
-              'Python Lint'
+              'Python Lint',
+              'Run Application',
+              'Commits Syntax Checker'
             ];
 
             const { data: workflowRuns } = await github.rest.actions.listWorkflowRunsForRepo({
