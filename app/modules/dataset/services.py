@@ -1022,7 +1022,12 @@ class DatasetVersionService:
                     val1 = rec1_normalized.get(key)
                     val2 = rec2_normalized.get(key)
                     if val1 != val2:
-                        logger.debug(f"Difference in '{key}': '{val1}' vs '{val2}' (original: '{rec1.get(key)}' vs '{rec2.get(key)}')")
+                        orig1 = rec1.get(key)
+                        orig2 = rec2.get(key)
+                        logger.debug(
+                            f"Difference in '{key}': '{val1}' vs '{val2}' "
+                            f"(original: '{orig1}' vs '{orig2}')"
+                        )
 
             return rec1_normalized == rec2_normalized
 

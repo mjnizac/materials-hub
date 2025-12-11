@@ -2376,7 +2376,6 @@ def test_dataset_version_cascade_delete(test_client):
     db.session.commit()
 
     version_id = version.id
-    dataset_id = dataset.id
 
     # Delete dataset
     db.session.delete(dataset)
@@ -2608,9 +2607,6 @@ def test_dataset_version_service_list_versions(test_client):
 @pytest.mark.unit
 def test_dataset_version_service_compare_metadata(test_client):
     """Test DatasetVersionService.compare_metadata() method"""
-    import csv
-    import os
-
     user = User(email="test_compare_metadata@example.com", password="test123")
     db.session.add(user)
     db.session.commit()

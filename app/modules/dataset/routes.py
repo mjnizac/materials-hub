@@ -202,8 +202,11 @@ def create_version_snapshot(dataset_id, user_id=None, change_description="Datase
             ]
         }
 
-        logger.info(f"Creating version {next_version} snapshot with metadata: title='{metadata_snapshot['title']}', "
-                   f"description='{metadata_snapshot['description'][:50] if metadata_snapshot.get('description') else ''}...'")
+        desc_preview = metadata_snapshot['description'][:50] if metadata_snapshot.get('description') else ''
+        logger.info(
+            f"Creating version {next_version} snapshot with metadata: "
+            f"title='{metadata_snapshot['title']}', description='{desc_preview}...'"
+        )
 
         # Get current records count
         records_count = material_record_repository.count_by_dataset(dataset_id)
@@ -800,9 +803,11 @@ def add_material_record(dataset_id):
                 }
 
                 # Return intermediate template that saves to sessionStorage and redirects
-                return render_template("dataset/save_temp_record.html",
-                                     dataset=dataset,
-                                     temp_record=json.dumps(temp_record))
+                return render_template(
+                    "dataset/save_temp_record.html",
+                    dataset=dataset,
+                    temp_record=json.dumps(temp_record)
+                )
 
             # Normal flow: save directly to database
             new_record = MaterialRecord(
@@ -1037,22 +1042,22 @@ def edit_materials_dataset(dataset_id):
                 metadata_changed = True
                 changes_made.append("title")
             if dataset.ds_meta_data.description != form.desc.data:
-                logger.info(f"Description changed")
+                logger.info("Description changed")
                 dataset.ds_meta_data.description = form.desc.data
                 metadata_changed = True
                 changes_made.append("description")
             if dataset.ds_meta_data.publication_type != PublicationType(form.publication_type.data):
-                logger.info(f"Publication type changed")
+                logger.info("Publication type changed")
                 dataset.ds_meta_data.publication_type = PublicationType(form.publication_type.data)
                 metadata_changed = True
                 changes_made.append("publication_type")
             if dataset.ds_meta_data.publication_doi != form.publication_doi.data:
-                logger.info(f"Publication DOI changed")
+                logger.info("Publication DOI changed")
                 dataset.ds_meta_data.publication_doi = form.publication_doi.data
                 metadata_changed = True
                 changes_made.append("publication_doi")
             if dataset.ds_meta_data.tags != form.tags.data:
-                logger.info(f"Tags changed")
+                logger.info("Tags changed")
                 dataset.ds_meta_data.tags = form.tags.data
                 metadata_changed = True
                 changes_made.append("tags")
@@ -1109,7 +1114,10 @@ def edit_materials_dataset(dataset_id):
                             property_unit=temp_record.get('property_unit'),
                             temperature=temp_record.get('temperature'),
                             pressure=temp_record.get('pressure'),
-                            data_source=DataSource(temp_record['data_source']) if temp_record.get('data_source') else None,
+                            data_source=(
+                                DataSource(temp_record['data_source'])
+                                if temp_record.get('data_source') else None
+                            ),
                             uncertainty=temp_record.get('uncertainty'),
                             description=temp_record.get('description'),
                         )
@@ -1142,7 +1150,10 @@ def edit_materials_dataset(dataset_id):
             else:
                 flash('No changes were made.', 'info')
 
-            logger.info(f"Updated MaterialsDataset {dataset_id}: {change_description if (metadata_changed or records_changed) else 'no changes'}")
+            change_msg = (
+                change_description if (metadata_changed or records_changed) else 'no changes'
+            )
+            logger.info(f"Updated MaterialsDataset {dataset_id}: {change_msg}")
 
         except Exception as e:
             db.session.rollback()

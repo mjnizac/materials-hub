@@ -337,7 +337,13 @@ class DatasetVersion(db.Model):
 
     # Relationships
     materials_dataset = db.relationship(
-        "MaterialsDataset", backref=db.backref("versions", lazy=True, cascade="all, delete", order_by="DatasetVersion.version_number.desc()")
+        "MaterialsDataset",
+        backref=db.backref(
+            "versions",
+            lazy=True,
+            cascade="all, delete",
+            order_by="DatasetVersion.version_number.desc()"
+        )
     )
     created_by = db.relationship("User")
 

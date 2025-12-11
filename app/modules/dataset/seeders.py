@@ -78,7 +78,10 @@ class DataSetSeeder(BaseSeeder):
         create_version_snapshot(dataset.id, user2.id, "Initial dataset creation")
 
         dataset.ds_meta_data.title = "Ultra-Hard Carbides and Nitrides Database"
-        dataset.ds_meta_data.description = "Comprehensive mechanical and thermal properties of ultra-hard carbides and nitrides for extreme environment applications including cutting tools and protective coatings"
+        dataset.ds_meta_data.description = (
+            "Comprehensive mechanical and thermal properties of ultra-hard carbides and nitrides "
+            "for extreme environment applications including cutting tools and protective coatings"
+        )
         db.session.commit()
         regenerate_csv_for_dataset(dataset.id)
         create_version_snapshot(dataset.id, user2.id, "Enhanced title and description for clarity")
@@ -139,7 +142,10 @@ class DataSetSeeder(BaseSeeder):
         create_version_snapshot(dataset.id, user1.id, "Initial dataset creation")
 
         dataset.ds_meta_data.title = "2D Materials & van der Waals Heterostructures"
-        dataset.ds_meta_data.description = "Mechanical, electronic, and optical properties of graphene, TMDs, and van der Waals heterostructures for next-generation electronics"
+        dataset.ds_meta_data.description = (
+            "Mechanical, electronic, and optical properties of graphene, TMDs, "
+            "and van der Waals heterostructures for next-generation electronics"
+        )
         dataset.ds_meta_data.tags = "2D materials, graphene, TMD, heterostructures, electronic"
         db.session.commit()
 
@@ -169,7 +175,10 @@ class DataSetSeeder(BaseSeeder):
         create_version_snapshot(dataset.id, user2.id, "Initial dataset creation")
 
         # Update description
-        dataset.ds_meta_data.description = "Mechanical properties and phase stability of high entropy alloys across temperature ranges from cryogenic to high temperature"
+        dataset.ds_meta_data.description = (
+            "Mechanical properties and phase stability of high entropy alloys "
+            "across temperature ranges from cryogenic to high temperature"
+        )
         db.session.commit()
 
         # Modify a record
@@ -182,7 +191,10 @@ class DataSetSeeder(BaseSeeder):
             db.session.commit()
 
         regenerate_csv_for_dataset(dataset.id)
-        create_version_snapshot(dataset.id, user2.id, "Updated description and revised AlCoCrFeNi hardness after heat treatment")
+        create_version_snapshot(
+            dataset.id, user2.id,
+            "Updated description and revised AlCoCrFeNi hardness after heat treatment"
+        )
 
         # Add another version with new data
         new_record = MaterialRecord(
@@ -210,7 +222,10 @@ class DataSetSeeder(BaseSeeder):
         create_version_snapshot(dataset.id, user1.id, "Initial dataset creation")
 
         dataset.ds_meta_data.title = "Next-Generation Battery Materials Database"
-        dataset.ds_meta_data.description = "Electrochemical properties of cathode, anode, and solid electrolyte materials for lithium-ion, sodium-ion, and solid-state batteries"
+        dataset.ds_meta_data.description = (
+            "Electrochemical properties of cathode, anode, and solid electrolyte materials "
+            "for lithium-ion, sodium-ion, and solid-state batteries"
+        )
         dataset.ds_meta_data.tags = "battery, electrochemical, energy storage, cathode, anode, solid-state"
         db.session.commit()
 
