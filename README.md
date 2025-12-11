@@ -1,4 +1,6 @@
-# Materials Hub
+<img src="{{ url_for('static', filename='img/icons/materials.png') }}"
+     alt="Materials Hub"
+     style="height: 80px;">
 
 [![Tests](https://github.com/mjnizac/materials-hub/actions/workflows/CI_tests_unitarios.yml/badge.svg)](https://github.com/mjnizac/materials-hub/actions)
 [![Lint](https://github.com/mjnizac/materials-hub/actions/workflows/CI_lint.yml/badge.svg)](https://github.com/mjnizac/materials-hub/actions)
