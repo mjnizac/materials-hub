@@ -1,6 +1,6 @@
 <img src="app/static/img/icons/materials.png"
      alt="Materials Hub"
-     style="height: 80px;">
+     style="height: 800px; display: block; margin-left: auto; margin-right: auto;">
 
 [![Tests](https://github.com/mjnizac/materials-hub/actions/workflows/CI_tests_unitarios.yml/badge.svg)](https://github.com/mjnizac/materials-hub/actions)
 [![Lint](https://github.com/mjnizac/materials-hub/actions/workflows/CI_lint.yml/badge.svg)](https://github.com/mjnizac/materials-hub/actions)
