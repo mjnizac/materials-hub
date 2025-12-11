@@ -25,13 +25,15 @@ class DataSetSeeder(BaseSeeder):
 
     def _create_dataset_versions(self, datasets, user1, user2):
         """Create creative versions for datasets with different types of changes"""
+        from sqlalchemy.exc import ProgrammingError
+
         from app import db
         from app.modules.dataset.routes import create_version_snapshot, regenerate_csv_for_dataset
-        from sqlalchemy.exc import ProgrammingError
 
         try:
             # Check if dataset_version table exists by attempting a simple query
             from app.modules.dataset.models import DatasetVersion
+
             DatasetVersion.query.first()
         except ProgrammingError:
             print("  ⚠ Skipping version creation - dataset_version table does not exist yet.")
