@@ -1,4 +1,4 @@
-<img src="{{ url_for('static', filename='img/icons/materials.png') }}"
+<img src="app/static/img/icons/materials.png"
      alt="Materials Hub"
      style="height: 80px;">
 
