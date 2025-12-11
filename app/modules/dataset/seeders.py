@@ -182,9 +182,7 @@ class DataSetSeeder(BaseSeeder):
         db.session.commit()
 
         # Modify a record
-        hea_record = MaterialRecord.query.filter_by(
-            materials_dataset_id=dataset.id, material_name="AlCoCrFeNi"
-        ).first()
+        hea_record = MaterialRecord.query.filter_by(materials_dataset_id=dataset.id, material_name="AlCoCrFeNi").first()
         if hea_record:
             hea_record.property_value = 5.5  # Updated hardness
             hea_record.description = "High hardness HEA - after annealing"
@@ -192,8 +190,7 @@ class DataSetSeeder(BaseSeeder):
 
         regenerate_csv_for_dataset(dataset.id)
         create_version_snapshot(
-            dataset.id, user2.id,
-            "Updated description and revised AlCoCrFeNi hardness after heat treatment"
+            dataset.id, user2.id, "Updated description and revised AlCoCrFeNi hardness after heat treatment"
         )
 
         # Add another version with new data

@@ -254,9 +254,7 @@ class DatasetVersionRepository(BaseRepository):
     def get_by_dataset(self, dataset_id: int):
         """Get all versions for a dataset, ordered by version_number DESC"""
         return (
-            self.model.query.filter_by(materials_dataset_id=dataset_id)
-            .order_by(desc(self.model.version_number))
-            .all()
+            self.model.query.filter_by(materials_dataset_id=dataset_id).order_by(desc(self.model.version_number)).all()
         )
 
     def get_latest_version(self, dataset_id: int) -> Optional[DatasetVersion]:
@@ -278,6 +276,4 @@ class DatasetVersionRepository(BaseRepository):
 
     def get_version_by_number(self, dataset_id: int, version_number: int) -> Optional[DatasetVersion]:
         """Get a specific version by dataset_id and version_number"""
-        return self.model.query.filter_by(
-            materials_dataset_id=dataset_id, version_number=version_number
-        ).first()
+        return self.model.query.filter_by(materials_dataset_id=dataset_id, version_number=version_number).first()

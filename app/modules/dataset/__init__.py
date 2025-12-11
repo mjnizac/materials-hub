@@ -11,8 +11,8 @@ def normalize_value(val):
     Normalize values for comparison in templates.
     Treats numeric values equivalently (e.g., '300' == '300.0')
     """
-    if val is None or val == '' or val == 'None':
-        return ''
+    if val is None or val == "" or val == "None":
+        return ""
 
     val_str = str(val).strip()
 
@@ -30,7 +30,7 @@ def normalize_value(val):
 
 
 # Register template filter
-dataset_bp.add_app_template_filter(normalize_value, 'normalize_value')
+dataset_bp.add_app_template_filter(normalize_value, "normalize_value")
 
 
 def init_api():

@@ -899,6 +899,7 @@ class MaterialsDatasetService:
 class DatasetVersionService:
     def __init__(self):
         from app.modules.dataset.repositories import DatasetVersionRepository, MaterialRecordRepository
+
         self.version_repository = DatasetVersionRepository()
         self.record_repository = MaterialRecordRepository()
 
@@ -931,9 +932,9 @@ class DatasetVersionService:
             if not csv_path or not os.path.exists(csv_path):
                 return False
 
-            with open(csv_path, 'r', encoding='utf-8') as f:
+            with open(csv_path, "r", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
-                return 'record_id' in reader.fieldnames if reader.fieldnames else False
+                return "record_id" in reader.fieldnames if reader.fieldnames else False
 
         # Determine comparison strategy
         v1_has_id = has_record_id_column(version1.csv_snapshot_path)
@@ -949,11 +950,11 @@ class DatasetVersionService:
             if not csv_path or not os.path.exists(csv_path):
                 return records
 
-            with open(csv_path, 'r', encoding='utf-8') as f:
+            with open(csv_path, "r", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     # Use record_id as primary key only if both versions support it
-                    record_id = row.get('record_id', '').strip()
+                    record_id = row.get("record_id", "").strip()
 
                     if use_id_keys and record_id:
                         # New format: use record_id as key
@@ -961,16 +962,26 @@ class DatasetVersionService:
                     else:
                         # Content-based key for backwards compatibility
                         key_parts = []
-                        for field in ['material_name', 'chemical_formula', 'structure_type',
-                                      'composition_method', 'property_name', 'property_value',
-                                      'property_unit', 'temperature', 'pressure', 'data_source',
-                                      'uncertainty', 'description']:
-                            val = row.get(field, '').strip()
+                        for field in [
+                            "material_name",
+                            "chemical_formula",
+                            "structure_type",
+                            "composition_method",
+                            "property_name",
+                            "property_value",
+                            "property_unit",
+                            "temperature",
+                            "pressure",
+                            "data_source",
+                            "uncertainty",
+                            "description",
+                        ]:
+                            val = row.get(field, "").strip()
                             if val:
                                 key_parts.append(f"{field}:{val}")
 
                         # Use the full content as key - if duplicate, append counter
-                        key = '||'.join(key_parts)
+                        key = "||".join(key_parts)
                         counter = 1
                         original_key = key
                         while key in records:
@@ -990,8 +1001,8 @@ class DatasetVersionService:
             - Treat None, '', 'None' as equivalent empty values
             - Treat numeric values equivalently (e.g., '300' == '300.0')
             """
-            if val is None or val == '' or val == 'None':
-                return ''
+            if val is None or val == "" or val == "None":
+                return ""
 
             val_str = str(val).strip()
 
@@ -1013,8 +1024,8 @@ class DatasetVersionService:
 
         def records_are_equal(rec1, rec2):
             """Compare two records with normalization, excluding record_id"""
-            rec1_normalized = {k: normalize_value(v) for k, v in rec1.items() if k != 'record_id'}
-            rec2_normalized = {k: normalize_value(v) for k, v in rec2.items() if k != 'record_id'}
+            rec1_normalized = {k: normalize_value(v) for k, v in rec1.items() if k != "record_id"}
+            rec2_normalized = {k: normalize_value(v) for k, v in rec2.items() if k != "record_id"}
 
             # Debug logging for numeric comparison issues
             if rec1_normalized != rec2_normalized:
@@ -1025,8 +1036,7 @@ class DatasetVersionService:
                         orig1 = rec1.get(key)
                         orig2 = rec2.get(key)
                         logger.debug(
-                            f"Difference in '{key}': '{val1}' vs '{val2}' "
-                            f"(original: '{orig1}' vs '{orig2}')"
+                            f"Difference in '{key}': '{val1}' vs '{val2}' " f"(original: '{orig1}' vs '{orig2}')"
                         )
 
             return rec1_normalized == rec2_normalized
@@ -1049,10 +1059,7 @@ class DatasetVersionService:
 
             for key in common_keys:
                 if not records_are_equal(records1[key], records2[key]):
-                    modified_records.append({
-                        'old': records1[key],
-                        'new': records2[key]
-                    })
+                    modified_records.append({"old": records1[key], "new": records2[key]})
                 else:
                     unchanged_count += 1
         else:
@@ -1067,15 +1074,15 @@ class DatasetVersionService:
                 """Generate a content-based key (less prone to change than full content)"""
                 # Use only the most stable fields
                 parts = []
-                for field in ['material_name', 'property_name']:
-                    val = record.get(field, '').strip()
+                for field in ["material_name", "property_name"]:
+                    val = record.get(field, "").strip()
                     if val:
                         parts.append(val)
-                return '||'.join(parts) if parts else None
+                return "||".join(parts) if parts else None
 
             # Build indices
             for key, record in records1.items():
-                record_id = record.get('record_id', '').strip()
+                record_id = record.get("record_id", "").strip()
                 if record_id:
                     id_map1[record_id] = (key, record)
 
@@ -1086,7 +1093,7 @@ class DatasetVersionService:
                     content_map1[content_key].append((key, record))
 
             for key, record in records2.items():
-                record_id = record.get('record_id', '').strip()
+                record_id = record.get("record_id", "").strip()
                 if record_id:
                     id_map2[record_id] = (key, record)
 
@@ -1135,20 +1142,17 @@ class DatasetVersionService:
             for key1, key2 in matched_pairs:
                 # Compare records using normalized comparison (treats None, '', 'None' as equivalent)
                 if not records_are_equal(records1[key1], records2[key2]):
-                    modified_records.append({
-                        'old': records1[key1],
-                        'new': records2[key2]
-                    })
+                    modified_records.append({"old": records1[key1], "new": records2[key2]})
                 else:
                     unchanged_count += 1
 
         return {
-            'added_records': added_records,
-            'deleted_records': deleted_records,
-            'modified_records': modified_records,
-            'unchanged_records_count': unchanged_count,
-            'total_v1': len(records1),
-            'total_v2': len(records2)
+            "added_records": added_records,
+            "deleted_records": deleted_records,
+            "modified_records": modified_records,
+            "unchanged_records_count": unchanged_count,
+            "total_v1": len(records1),
+            "total_v2": len(records2),
         }
 
     def compare_metadata(self, version_id_1: int, version_id_2: int):
@@ -1176,20 +1180,12 @@ class DatasetVersionService:
             val1 = meta1.get(key)
             val2 = meta2.get(key)
 
-            if key == 'authors':
+            if key == "authors":
                 # Special handling for authors list
                 changed = val1 != val2
-                comparison[key] = {
-                    'old': val1,
-                    'new': val2,
-                    'changed': changed
-                }
+                comparison[key] = {"old": val1, "new": val2, "changed": changed}
             else:
-                comparison[key] = {
-                    'old': val1,
-                    'new': val2,
-                    'changed': val1 != val2
-                }
+                comparison[key] = {"old": val1, "new": val2, "changed": val1 != val2}
 
         return comparison
 
@@ -1212,7 +1208,7 @@ class DatasetVersionService:
         def read_file_lines(path):
             if not path or not os.path.exists(path):
                 return []
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 return f.readlines()
 
         lines1 = read_file_lines(version1.csv_snapshot_path)
@@ -1222,9 +1218,9 @@ class DatasetVersionService:
         diff = difflib.unified_diff(
             lines1,
             lines2,
-            fromfile=f'Version {version1.version_number}',
-            tofile=f'Version {version2.version_number}',
-            lineterm=''
+            fromfile=f"Version {version1.version_number}",
+            tofile=f"Version {version2.version_number}",
+            lineterm="",
         )
 
-        return '\n'.join(diff)
+        return "\n".join(diff)

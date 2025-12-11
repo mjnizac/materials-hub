@@ -34,6 +34,7 @@ def db_setup(yes):
 
     # Step 0: Reset database (always)
     from rosemary.commands.db_reset import db_reset
+
     click.echo(click.style("\n[1/3] Resetting database...", fg="red"))
     ctx = click.get_current_context()
     ctx.invoke(db_reset, clear_migrations=False, yes=True)

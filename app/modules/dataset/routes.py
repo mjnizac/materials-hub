@@ -193,16 +193,12 @@ def create_version_snapshot(dataset_id, user_id=None, change_description="Datase
             "dataset_doi": dataset.ds_meta_data.dataset_doi,
             "tags": dataset.ds_meta_data.tags,
             "authors": [
-                {
-                    "name": author.name,
-                    "affiliation": author.affiliation,
-                    "orcid": author.orcid
-                }
+                {"name": author.name, "affiliation": author.affiliation, "orcid": author.orcid}
                 for author in dataset.ds_meta_data.authors
-            ]
+            ],
         }
 
-        desc_preview = metadata_snapshot['description'][:50] if metadata_snapshot.get('description') else ''
+        desc_preview = metadata_snapshot["description"][:50] if metadata_snapshot.get("description") else ""
         logger.info(
             f"Creating version {next_version} snapshot with metadata: "
             f"title='{metadata_snapshot['title']}', description='{desc_preview}...'"
@@ -215,7 +211,7 @@ def create_version_snapshot(dataset_id, user_id=None, change_description="Datase
         changelog = {
             "action": change_description,
             "timestamp": datetime.utcnow().isoformat(),
-            "records_count": records_count
+            "records_count": records_count,
         }
 
         # Create version record
@@ -226,7 +222,7 @@ def create_version_snapshot(dataset_id, user_id=None, change_description="Datase
             csv_snapshot_path=csv_snapshot_path,
             metadata_snapshot=metadata_snapshot,
             changelog=changelog,
-            records_count=records_count
+            records_count=records_count,
         )
 
         logger.info(f"Created version {next_version} for dataset {dataset_id}")
@@ -778,35 +774,34 @@ def add_material_record(dataset_id):
     form = MaterialRecordForm()
 
     # Check if we're coming from the edit view
-    return_to_edit = request.args.get('return_to') == 'edit'
+    return_to_edit = request.args.get("return_to") == "edit"
 
     if form.validate_on_submit():
         try:
             # If coming from edit view, save as temporary record (don't commit to DB yet)
             if return_to_edit:
                 import json
+
                 # Create temporary record data (not saved to DB)
                 temp_record = {
-                    'temp_id': f'temp_{int(time.time() * 1000)}',  # Unique temporary ID
-                    'material_name': form.material_name.data,
-                    'chemical_formula': form.chemical_formula.data,
-                    'structure_type': form.structure_type.data,
-                    'composition_method': form.composition_method.data,
-                    'property_name': form.property_name.data,
-                    'property_value': float(form.property_value.data),
-                    'property_unit': form.property_unit.data,
-                    'temperature': float(form.temperature.data) if form.temperature.data else None,
-                    'pressure': float(form.pressure.data) if form.pressure.data else None,
-                    'data_source': form.data_source.data if form.data_source.data else None,
-                    'uncertainty': float(form.uncertainty.data) if form.uncertainty.data else None,
-                    'description': form.description.data,
+                    "temp_id": f"temp_{int(time.time() * 1000)}",  # Unique temporary ID
+                    "material_name": form.material_name.data,
+                    "chemical_formula": form.chemical_formula.data,
+                    "structure_type": form.structure_type.data,
+                    "composition_method": form.composition_method.data,
+                    "property_name": form.property_name.data,
+                    "property_value": float(form.property_value.data),
+                    "property_unit": form.property_unit.data,
+                    "temperature": float(form.temperature.data) if form.temperature.data else None,
+                    "pressure": float(form.pressure.data) if form.pressure.data else None,
+                    "data_source": form.data_source.data if form.data_source.data else None,
+                    "uncertainty": float(form.uncertainty.data) if form.uncertainty.data else None,
+                    "description": form.description.data,
                 }
 
                 # Return intermediate template that saves to sessionStorage and redirects
                 return render_template(
-                    "dataset/save_temp_record.html",
-                    dataset=dataset,
-                    temp_record=json.dumps(temp_record)
+                    "dataset/save_temp_record.html", dataset=dataset, temp_record=json.dumps(temp_record)
                 )
 
             # Normal flow: save directly to database
@@ -870,7 +865,7 @@ def edit_material_record(dataset_id, record_id):
     form = MaterialRecordForm(obj=record)
 
     # Check if we're coming from the edit view
-    return_to_edit = request.args.get('return_to') == 'edit'
+    return_to_edit = request.args.get("return_to") == "edit"
 
     # Debug logging
     if request.method == "POST":
@@ -1015,11 +1010,13 @@ def edit_materials_dataset(dataset_id):
             records = material_record_repository.get_by_dataset(dataset_id)
             total_records = len(records)
 
-            return render_template("dataset/edit_materials_dataset.html",
-                                   form=form,
-                                   dataset=dataset,
-                                   records=records,
-                                   total_records=total_records)
+            return render_template(
+                "dataset/edit_materials_dataset.html",
+                form=form,
+                dataset=dataset,
+                records=records,
+                total_records=total_records,
+            )
 
         except Exception as e:
             logger.exception(f"Error preparing edit form for dataset {dataset_id}: {e}")
@@ -1063,23 +1060,25 @@ def edit_materials_dataset(dataset_id):
                 changes_made.append("tags")
 
             logger.info(
-                f"Metadata changed: {metadata_changed}, Records changed: {records_changed}, "
-                f"Changes: {changes_made}"
+                f"Metadata changed: {metadata_changed}, Records changed: {records_changed}, " f"Changes: {changes_made}"
             )
 
             # Process record deletions
-            records_to_delete = request.form.get('records_to_delete', '[]')
+            records_to_delete = request.form.get("records_to_delete", "[]")
             try:
                 import json
+
                 from app.modules.dataset.models import MaterialRecord
+
                 records_to_delete_list = json.loads(records_to_delete)
 
                 if records_to_delete_list:
                     for record_id in records_to_delete_list:
-                        record = db.session.query(MaterialRecord).filter_by(
-                            id=record_id,
-                            materials_dataset_id=dataset_id
-                        ).first()
+                        record = (
+                            db.session.query(MaterialRecord)
+                            .filter_by(id=record_id, materials_dataset_id=dataset_id)
+                            .first()
+                        )
                         if record:
                             db.session.delete(record)
                             records_changed = True
@@ -1088,7 +1087,7 @@ def edit_materials_dataset(dataset_id):
                 logger.warning("Invalid records_to_delete JSON")
 
             # Check if any records were edited (tracked in sessionStorage and sent via form)
-            records_to_edit = request.form.get('records_to_edit', '[]')
+            records_to_edit = request.form.get("records_to_edit", "[]")
             try:
                 records_to_edit_list = json.loads(records_to_edit)
                 if records_to_edit_list:
@@ -1098,9 +1097,10 @@ def edit_materials_dataset(dataset_id):
                 logger.warning("Invalid records_to_edit JSON")
 
             # Process temporary records to add (created during edit session)
-            records_to_add = request.form.get('records_to_add', '[]')
+            records_to_add = request.form.get("records_to_add", "[]")
             try:
                 from app.modules.dataset.models import DataSource
+
                 records_to_add_list = json.loads(records_to_add)
 
                 if records_to_add_list:
@@ -1108,21 +1108,20 @@ def edit_materials_dataset(dataset_id):
                         # Create new MaterialRecord from temporary data
                         new_record = MaterialRecord(
                             materials_dataset_id=dataset_id,
-                            material_name=temp_record.get('material_name'),
-                            chemical_formula=temp_record.get('chemical_formula'),
-                            structure_type=temp_record.get('structure_type'),
-                            composition_method=temp_record.get('composition_method'),
-                            property_name=temp_record.get('property_name'),
-                            property_value=temp_record.get('property_value'),
-                            property_unit=temp_record.get('property_unit'),
-                            temperature=temp_record.get('temperature'),
-                            pressure=temp_record.get('pressure'),
+                            material_name=temp_record.get("material_name"),
+                            chemical_formula=temp_record.get("chemical_formula"),
+                            structure_type=temp_record.get("structure_type"),
+                            composition_method=temp_record.get("composition_method"),
+                            property_name=temp_record.get("property_name"),
+                            property_value=temp_record.get("property_value"),
+                            property_unit=temp_record.get("property_unit"),
+                            temperature=temp_record.get("temperature"),
+                            pressure=temp_record.get("pressure"),
                             data_source=(
-                                DataSource(temp_record['data_source'])
-                                if temp_record.get('data_source') else None
+                                DataSource(temp_record["data_source"]) if temp_record.get("data_source") else None
                             ),
-                            uncertainty=temp_record.get('uncertainty'),
-                            description=temp_record.get('description'),
+                            uncertainty=temp_record.get("uncertainty"),
+                            description=temp_record.get("description"),
                         )
                         db.session.add(new_record)
                         records_changed = True
@@ -1149,13 +1148,11 @@ def edit_materials_dataset(dataset_id):
             if metadata_changed or records_changed:
                 change_description = "Edited dataset: " + ", ".join(changes_made)
                 create_version_snapshot(dataset_id, current_user.id, change_description)
-                flash('Dataset updated successfully! All changes saved in a single version.', 'success')
+                flash("Dataset updated successfully! All changes saved in a single version.", "success")
             else:
-                flash('No changes were made.', 'info')
+                flash("No changes were made.", "info")
 
-            change_msg = (
-                change_description if (metadata_changed or records_changed) else 'no changes'
-            )
+            change_msg = change_description if (metadata_changed or records_changed) else "no changes"
             logger.info(f"Updated MaterialsDataset {dataset_id}: {change_msg}")
 
         except Exception as e:
@@ -1165,22 +1162,22 @@ def edit_materials_dataset(dataset_id):
             # Re-fetch records for template
             records = material_record_repository.get_by_dataset(dataset_id)
             total_records = len(records)
-            return render_template("dataset/edit_materials_dataset.html",
-                                   form=form,
-                                   dataset=dataset,
-                                   records=records,
-                                   total_records=total_records)
+            return render_template(
+                "dataset/edit_materials_dataset.html",
+                form=form,
+                dataset=dataset,
+                records=records,
+                total_records=total_records,
+            )
 
         return redirect(url_for("dataset.view_materials_dataset", dataset_id=dataset_id))
 
     # If form validation fails, re-fetch records for template
     records = material_record_repository.get_by_dataset(dataset_id)
     total_records = len(records)
-    return render_template("dataset/edit_materials_dataset.html",
-                           form=form,
-                           dataset=dataset,
-                           records=records,
-                           total_records=total_records)
+    return render_template(
+        "dataset/edit_materials_dataset.html", form=form, dataset=dataset, records=records, total_records=total_records
+    )
 
 
 @dataset_bp.route("/materials/<int:dataset_id>/delete", methods=["POST"])
@@ -1238,18 +1235,16 @@ def list_versions(dataset_id):
     versions = dataset_version_service.list_versions(dataset_id)
 
     # Check if requesting JSON (API) or HTML
-    if request.accept_mimetypes.best == 'application/json':
-        return jsonify({
-            'dataset_id': dataset_id,
-            'dataset_title': dataset.ds_meta_data.title,
-            'versions': [v.to_dict() for v in versions]
-        })
+    if request.accept_mimetypes.best == "application/json":
+        return jsonify(
+            {
+                "dataset_id": dataset_id,
+                "dataset_title": dataset.ds_meta_data.title,
+                "versions": [v.to_dict() for v in versions],
+            }
+        )
 
-    return render_template(
-        "dataset/version_list.html",
-        dataset=dataset,
-        versions=versions
-    )
+    return render_template("dataset/version_list.html", dataset=dataset, versions=versions)
 
 
 @dataset_bp.route("/materials/<int:dataset_id>/versions/compare", methods=["GET"])
@@ -1259,9 +1254,9 @@ def compare_versions(dataset_id):
     if not dataset:
         abort(404, description="MaterialsDataset not found")
 
-    version_id_1 = request.args.get('version_1', type=int)
-    version_id_2 = request.args.get('version_2', type=int)
-    comparison_type = request.args.get('type', 'all')  # 'files', 'metadata', 'all'
+    version_id_1 = request.args.get("version_1", type=int)
+    version_id_2 = request.args.get("version_2", type=int)
+    comparison_type = request.args.get("type", "all")  # 'files', 'metadata', 'all'
 
     if not version_id_1 or not version_id_2:
         flash("Please select two versions to compare", "warning")
@@ -1278,23 +1273,25 @@ def compare_versions(dataset_id):
     metadata_comparison = None
     csv_diff = None
 
-    if comparison_type in ['files', 'all']:
+    if comparison_type in ["files", "all"]:
         file_comparison = dataset_version_service.compare_files(version_id_1, version_id_2)
         csv_diff = dataset_version_service.get_csv_diff(version_id_1, version_id_2)
 
-    if comparison_type in ['metadata', 'all']:
+    if comparison_type in ["metadata", "all"]:
         metadata_comparison = dataset_version_service.compare_metadata(version_id_1, version_id_2)
 
     # Check if requesting JSON (API) or HTML
-    if request.accept_mimetypes.best == 'application/json':
-        return jsonify({
-            'dataset_id': dataset_id,
-            'version_1': version1.to_dict(),
-            'version_2': version2.to_dict(),
-            'file_comparison': file_comparison,
-            'metadata_comparison': metadata_comparison,
-            'csv_diff': csv_diff
-        })
+    if request.accept_mimetypes.best == "application/json":
+        return jsonify(
+            {
+                "dataset_id": dataset_id,
+                "version_1": version1.to_dict(),
+                "version_2": version2.to_dict(),
+                "file_comparison": file_comparison,
+                "metadata_comparison": metadata_comparison,
+                "csv_diff": csv_diff,
+            }
+        )
 
     return render_template(
         "dataset/version_comparison.html",
@@ -1303,7 +1300,7 @@ def compare_versions(dataset_id):
         version2=version2,
         file_comparison=file_comparison,
         metadata_comparison=metadata_comparison,
-        csv_diff=csv_diff
+        csv_diff=csv_diff,
     )
 
 
@@ -1329,5 +1326,5 @@ def download_version(dataset_id, version_id):
         directory,
         filename,
         as_attachment=True,
-        download_name=f"{dataset.ds_meta_data.title}_v{version.version_number}.csv"
+        download_name=f"{dataset.ds_meta_data.title}_v{version.version_number}.csv",
     )
