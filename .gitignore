@@ -45,6 +45,7 @@ entrypoint.sh
 # ==========================
 uploads/
 test_file.txt
+temp/
 
 # ==========================
 # Vagrant

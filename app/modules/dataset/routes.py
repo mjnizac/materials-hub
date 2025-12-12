@@ -7,17 +7,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from flask import (
-    abort,
-    flash,
-    jsonify,
-    make_response,
-    redirect,
-    render_template,
-    request,
-    send_from_directory,
-    url_for,
-)
+from flask import abort, flash, jsonify, make_response, redirect, render_template, request, send_from_directory, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 
@@ -38,14 +28,12 @@ from app.modules.dataset.services import (
     MaterialsDatasetService,
 )
 from app.modules.fakenodo.services import FakenodoService
-from app.modules.zenodo.services import ZenodoService
 from core.configuration.configuration import USE_FAKENODO
 
 logger = logging.getLogger(__name__)
 author_service = AuthorService()
 dsmetadata_service = DSMetaDataService()
 fakenodo_service = FakenodoService()
-zenodo_service = ZenodoService()
 doi_mapping_service = DOIMappingService()
 ds_view_record_service = DSViewRecordService()
 
@@ -242,101 +230,97 @@ def create_version_snapshot(dataset_id, user_id=None, change_description="Datase
 @login_required
 def create_dataset():
     form = DataSetForm()
-    if request.method == "POST":
 
+    if request.method == "POST":
         if not form.validate_on_submit():
             return jsonify({"message": form.errors}), 400
 
         try:
             logger.info("Creating MaterialsDataset...")
 
-            # Always create MaterialsDataset
-            dataset = materials_dataset_service.create_from_form(form=form, current_user=current_user)
+            # Siempre creamos un MaterialsDataset
+            dataset = materials_dataset_service.create_from_form(
+                form=form,
+                current_user=current_user,
+            )
 
             logger.info(f"Created dataset: {dataset}")
         except Exception as exc:
             logger.exception(f"Exception while create dataset data in local {exc}")
             return jsonify({"Exception while create dataset data in local: ": str(exc)}), 400
 
+        # ==============================
+        # SOLO FAKENODO (ya no Zenodo)
+        # ==============================
         if USE_FAKENODO:
             data = {}
+
             try:
+                # 1) Crear la "deposition" en Fakenodo a partir del dataset
                 fakenodo_response_json = fakenodo_service.create_new_deposition(dataset)
                 response_data = json.dumps(fakenodo_response_json)
                 data = json.loads(response_data)
             except Exception as exc:
                 data = {}
-                fakenodo_response_json = {}
                 logger.exception(f"Exception while create dataset data in Fakenodo {exc}")
 
+            # Si Fakenodo ha devuelto un conceptrecid, seguimos
             if data.get("conceptrecid"):
                 deposition_id = data.get("id")
 
-                # update dataset with deposition id in Fakenodo
-                from app.modules.dataset.services import DSMetaDataService
-
-                dsmetadata_service = DSMetaDataService()
-                dsmetadata_service.update(dataset.ds_meta_data_id, deposition_id=deposition_id)
+                # 2) Guardar el deposition_id en los metadatos del dataset
+                dsmetadata_service.update(
+                    dataset.ds_meta_data_id,
+                    deposition_id=deposition_id,
+                )
 
                 try:
-                    # For MaterialsDataset, just publish without uploading files yet
-                    # Files (CSV) will be uploaded later via the upload_materials_csv route
+                    # 3) Para MaterialsDataset, de momento publicamos sin subir ficheros
+                    #    (el CSV se subirá después en /materials/<id>/upload)
                     fakenodo_service.publish_deposition(deposition_id)
 
-                    # update DOI
+                    # 4) Obtener el DOI generado por Fakenodo
                     deposition_doi = fakenodo_service.get_doi(deposition_id)
-                    dsmetadata_service.update(dataset.ds_meta_data_id, dataset_doi=deposition_doi)
+
+                    # 5) Guardar el DOI en los metadatos del dataset
+                    dsmetadata_service.update(
+                        dataset.ds_meta_data_id,
+                        dataset_doi=deposition_doi,
+                    )
                 except Exception as e:
-                    msg = f"it has not been possible to publish in Fakenodo and update the DOI: {e}"
+                    msg = "it has not been possible to publish in Fakenodo and update the DOI: " f"{e}"
+                    # No rompemos la creación del dataset local, solo avisamos
+                    logger.exception(msg)
                     return jsonify({"message": msg}), 200
         else:
-            # send dataset as deposition to Zenodo
-            data = {}
-            try:
-                zenodo_response_json = zenodo_service.create_new_deposition(dataset)
-                response_data = json.dumps(zenodo_response_json)
-                data = json.loads(response_data)
-            except Exception as exc:
-                data = {}
-                zenodo_response_json = {}
-                logger.exception(f"Exception while create dataset data in Zenodo {exc}")
+            # Si USE_FAKENODO = False, simplemente no intentamos publicar en ningún repositorio externo
+            logger.info("USE_FAKENODO is False - skipping external deposition (Fakenodo disabled).")
 
-            if data.get("conceptrecid"):
-                deposition_id = data.get("id")
-
-                # update dataset with deposition id in Zenodo
-                from app.modules.dataset.services import DSMetaDataService
-
-                dsmetadata_service = DSMetaDataService()
-                dsmetadata_service.update(dataset.ds_meta_data_id, deposition_id=deposition_id)
-
-                try:
-                    # For MaterialsDataset, just publish without uploading files yet
-                    zenodo_service.publish_deposition(deposition_id)
-
-                    # update DOI
-                    deposition_doi = zenodo_service.get_doi(deposition_id)
-                    dsmetadata_service.update(dataset.ds_meta_data_id, dataset_doi=deposition_doi)
-                except Exception as e:
-                    msg = f"it has not been possible to publish in Zenodo and update the DOI: {e}"
-                    return jsonify({"message": msg}), 200
-
+        # Limpiar carpeta temporal del usuario
         file_path = current_user.temp_folder()
         if os.path.exists(file_path) and os.path.isdir(file_path):
             shutil.rmtree(file_path)
 
-        # Always redirect to CSV upload for MaterialsDataset
+        # Siempre redirigimos a la subida de CSV para MaterialsDataset
         return (
             jsonify(
                 {
                     "message": "Materials dataset created successfully!",
-                    "redirect_url": url_for("dataset.upload_materials_csv", dataset_id=dataset.id),
+                    "redirect_url": url_for(
+                        "dataset.upload_materials_csv",
+                        dataset_id=dataset.id,
+                    ),
                 }
             ),
             200,
         )
 
-    return render_template("dataset/upload_dataset.html", form=form, use_fakenodo=USE_FAKENODO)
+    # GET: mostrar formulario
+    return render_template(
+        "dataset/upload_dataset.html",
+        form=form,
+        use_fakenodo=USE_FAKENODO,
+    )
 
 
 @dataset_bp.route("/dataset/list", methods=["GET", "POST"])
