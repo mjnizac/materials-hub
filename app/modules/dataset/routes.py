@@ -1120,9 +1120,9 @@ def edit_materials_dataset(dataset_id):
             # Commit all changes to database
             db.session.commit()
 
-            # Regenerate CSV if records changed or metadata changed
-            # (need fresh CSV for version snapshot even if only metadata changed)
-            if records_changed or metadata_changed:
+            # Regenerate CSV ONLY if records changed (not for metadata-only changes)
+            # This prevents false "modified records" when only title/description changes
+            if records_changed:
                 regenerate_csv_for_dataset(dataset_id)
 
             # Expire all cached objects to ensure fresh data for snapshot
@@ -1132,7 +1132,10 @@ def edit_materials_dataset(dataset_id):
             if metadata_changed or records_changed:
                 change_description = "Edited dataset: " + ", ".join(changes_made)
                 create_version_snapshot(dataset_id, current_user.id, change_description)
-                flash("Dataset updated successfully! All changes saved in a single version.", "success")
+                if metadata_changed and not records_changed:
+                    flash("Dataset metadata updated successfully! (No record changes)", "success")
+                else:
+                    flash("Dataset updated successfully! All changes saved in a new version.", "success")
             else:
                 flash("No changes were made.", "info")
 

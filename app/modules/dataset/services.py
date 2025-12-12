@@ -940,59 +940,51 @@ class DatasetVersionService:
         v1_has_id = has_record_id_column(version1.csv_snapshot_path)
         v2_has_id = has_record_id_column(version2.csv_snapshot_path)
 
-        # Use ID-based comparison only if BOTH versions have record_id
-        # Otherwise, use content-based comparison for consistency
+        # ALWAYS use simple comparison - no hybrid mode
+        # If both have record_id, use id-based keys
+        # If neither has record_id OR only one has it, use line-based keys
+        # This ensures keys are compatible for comparison
         use_id_based = v1_has_id and v2_has_id
+
+        logger.info(
+            f"Comparing versions {version_id_1} and {version_id_2}: "
+            f"v1_has_id={v1_has_id}, v2_has_id={v2_has_id}, use_id_based={use_id_based}"
+        )
 
         # Read both CSV files
         def read_csv_as_dict(csv_path, use_id_keys=True):
+            """
+            Read CSV and create a dictionary of records.
+            If use_id_keys=True and record_id exists, use record_id as key.
+            Otherwise, use a simple counter (content matching happens later).
+            """
             records = {}
             if not csv_path or not os.path.exists(csv_path):
                 return records
 
             with open(csv_path, "r", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
+                counter = 0
                 for row in reader:
-                    # Use record_id as primary key only if both versions support it
                     record_id = row.get("record_id", "").strip()
 
                     if use_id_keys and record_id:
-                        # New format: use record_id as key
+                        # Use record_id as key when both versions have it
                         key = f"id:{record_id}"
                     else:
-                        # Content-based key for backwards compatibility
-                        key_parts = []
-                        for field in [
-                            "material_name",
-                            "chemical_formula",
-                            "structure_type",
-                            "composition_method",
-                            "property_name",
-                            "property_value",
-                            "property_unit",
-                            "temperature",
-                            "pressure",
-                            "data_source",
-                            "uncertainty",
-                            "description",
-                        ]:
-                            val = row.get(field, "").strip()
-                            if val:
-                                key_parts.append(f"{field}:{val}")
-
-                        # Use the full content as key - if duplicate, append counter
-                        key = "||".join(key_parts)
-                        counter = 1
-                        original_key = key
-                        while key in records:
-                            key = f"{original_key}__duplicate_{counter}"
-                            counter += 1
+                        # Use counter as temporary key
+                        # The content-based matching will handle proper pairing
+                        key = f"row:{counter}"
 
                     records[key] = row
+                    counter += 1
             return records
 
         records1 = read_csv_as_dict(version1.csv_snapshot_path, use_id_based)
         records2 = read_csv_as_dict(version2.csv_snapshot_path, use_id_based)
+
+        logger.info(f"Read {len(records1)} records from version {version_id_1}")
+        logger.info(f"Read {len(records2)} records from version {version_id_2}")
 
         # Helper function to normalize values for comparison
         def normalize_value(val):
@@ -1041,8 +1033,9 @@ class DatasetVersionService:
 
             return rec1_normalized == rec2_normalized
 
+        # Comparison logic
         if use_id_based:
-            # ID-based comparison: straightforward key matching
+            # Simple ID-based comparison: records are matched by record_id
             keys1 = set(records1.keys())
             keys2 = set(records2.keys())
 
@@ -1053,7 +1046,6 @@ class DatasetVersionService:
             added_records = [records2[k] for k in added_keys]
             deleted_records = [records1[k] for k in deleted_keys]
 
-            # Check for modifications in common records
             modified_records = []
             unchanged_count = 0
 
@@ -1062,8 +1054,10 @@ class DatasetVersionService:
                     modified_records.append({"old": records1[key], "new": records2[key]})
                 else:
                     unchanged_count += 1
+
         else:
-            # Hybrid comparison: try to use record_id when available, fall back to content matching
+            # Content-based comparison: match records by identifying fields
+            # When record_id is not available in both versions, use content matching
             # Build maps by record_id (when available) and by content key
             id_map1 = {}  # record_id -> (key, record)
             id_map2 = {}
@@ -1071,14 +1065,34 @@ class DatasetVersionService:
             content_map2 = {}
 
             def get_content_key(record):
-                """Generate a content-based key (less prone to change than full content)"""
-                # Use only the most stable fields
-                parts = []
-                for field in ["material_name", "property_name"]:
-                    val = record.get(field, "").strip()
-                    if val:
-                        parts.append(val)
-                return "||".join(parts) if parts else None
+                """
+                Generate content-based key using ALL identifying fields.
+                Excludes only the editable measurement values (property_value, uncertainty, description).
+                This ensures unique matching even when temp/pressure are empty.
+                """
+                def norm(val):
+                    if val is None or val == "" or val == "None":
+                        return ""
+                    val_str = str(val).strip()
+                    # Normalize numeric values
+                    try:
+                        num = float(val_str)
+                        return str(int(num)) if num == int(num) else str(num)
+                    except (ValueError, TypeError):
+                        return val_str
+
+                # Include ALL identifying fields for uniqueness
+                # Exclude ONLY: property_value (measured value), uncertainty, description
+                return "{}||{}||{}||{}||{}||{}||{}||{}".format(
+                    norm(record.get("material_name", "")),
+                    norm(record.get("chemical_formula", "")),
+                    norm(record.get("structure_type", "")),
+                    norm(record.get("composition_method", "")),
+                    norm(record.get("property_name", "")),
+                    norm(record.get("property_unit", "")),
+                    norm(record.get("temperature", "")),
+                    norm(record.get("pressure", ""))
+                )
 
             # Build indices
             for key, record in records1.items():
@@ -1103,20 +1117,28 @@ class DatasetVersionService:
                         content_map2[content_key] = []
                     content_map2[content_key].append((key, record))
 
+            # Log map sizes for debugging
+            logger.info(f"Built maps: id_map1={len(id_map1)}, id_map2={len(id_map2)}, content_map1={len(content_map1)}, content_map2={len(content_map2)}")
+
             # Match records: prefer ID matching, fall back to content matching
             matched_pairs = []
             unmatched_keys1 = set(records1.keys())
             unmatched_keys2 = set(records2.keys())
 
             # First pass: match by record_id when both have it
+            id_matched_count = 0
             for record_id, (key1, rec1) in id_map1.items():
                 if record_id in id_map2:
                     key2, rec2 = id_map2[record_id]
                     matched_pairs.append((key1, key2))
                     unmatched_keys1.discard(key1)
                     unmatched_keys2.discard(key2)
+                    id_matched_count += 1
+
+            logger.info(f"ID-based matching: {id_matched_count} records matched by record_id")
 
             # Second pass: match remaining by content key
+            content_matched_count = 0
             for content_key, pairs1 in content_map1.items():
                 if content_key in content_map2:
                     pairs2 = content_map2[content_key]
@@ -1131,6 +1153,9 @@ class DatasetVersionService:
                         matched_pairs.append((key1, key2))
                         unmatched_keys1.discard(key1)
                         unmatched_keys2.discard(key2)
+                        content_matched_count += 1
+
+            logger.info(f"Content-based matching: {content_matched_count} additional records matched")
 
             # Process results
             added_records = [records2[k] for k in unmatched_keys2]
@@ -1146,7 +1171,7 @@ class DatasetVersionService:
                 else:
                     unchanged_count += 1
 
-        return {
+        result = {
             "added_records": added_records,
             "deleted_records": deleted_records,
             "modified_records": modified_records,
@@ -1154,6 +1179,13 @@ class DatasetVersionService:
             "total_v1": len(records1),
             "total_v2": len(records2),
         }
+
+        logger.info(
+            f"Comparison results: {len(added_records)} added, {len(deleted_records)} deleted, "
+            f"{len(modified_records)} modified, {unchanged_count} unchanged"
+        )
+
+        return result
 
     def compare_metadata(self, version_id_1: int, version_id_2: int):
         """
