@@ -1118,7 +1118,10 @@ class DatasetVersionService:
                     content_map2[content_key].append((key, record))
 
             # Log map sizes for debugging
-            logger.info(f"Built maps: id_map1={len(id_map1)}, id_map2={len(id_map2)}, content_map1={len(content_map1)}, content_map2={len(content_map2)}")
+            logger.info(
+                f"Built maps: id_map1={len(id_map1)}, id_map2={len(id_map2)}, "
+                f"content_map1={len(content_map1)}, content_map2={len(content_map2)}"
+            )
 
             # Match records: prefer ID matching, fall back to content matching
             matched_pairs = []
