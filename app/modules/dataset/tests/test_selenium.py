@@ -720,3 +720,102 @@ def test_fakenodo_assigns_dataset_doi_visible_in_view():
 
     finally:
         close_driver(driver)
+
+
+def test_top_global_page_loads_and_metric_toggle():
+    """
+    1) Login
+    2) Ir a /datasets/top (por defecto downloads)
+    3) Verificar que hay tabla o mensaje "No datasets found."
+    4) Cambiar a 'views' y comprobar que la cabecera cambia a Views (si hay tabla)
+    5) Volver a 'downloads' y comprobar cabecera Downloads (si hay tabla)
+    """
+    driver = initialize_driver()
+    host = get_host_for_selenium_testing()
+
+    try:
+        login(driver, host)
+
+        driver.get(f"{host}/datasets/top")
+        wait_for_page_to_load(driver)
+
+        body_text = driver.find_element(By.TAG_NAME, "body").text
+        assert "Top" in body_text, "No parece la página de Top datasets"
+
+        # Tabla o placeholder
+        has_table = len(driver.find_elements(By.TAG_NAME, "table")) > 0
+        has_empty = "No datasets found" in body_text
+        assert has_table or has_empty, "No hay tabla ni mensaje de 'No datasets found.'"
+
+        # Cambiar a Most viewed
+        viewed_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[@type='submit' and @name='metric' and @value='views']"))
+        )
+        viewed_btn.click()
+        wait_for_page_to_load(driver)
+
+        if len(driver.find_elements(By.TAG_NAME, "table")) > 0:
+            ths = driver.find_elements(By.CSS_SELECTOR, "table thead th")
+            headers = [th.text.strip() for th in ths]
+            assert "Views" in headers, f"Cabeceras inesperadas en modo views: {headers}"
+
+        # Volver a Most downloaded
+        downloads_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[@type='submit' and @name='metric' and @value='downloads']"))
+        )
+        downloads_btn.click()
+        wait_for_page_to_load(driver)
+
+        if len(driver.find_elements(By.TAG_NAME, "table")) > 0:
+            ths = driver.find_elements(By.CSS_SELECTOR, "table thead th")
+            headers = [th.text.strip() for th in ths]
+            assert "Downloads" in headers, f"Cabeceras inesperadas en modo downloads: {headers}"
+
+    finally:
+        close_driver(driver)
+
+
+def test_top_global_limit_and_invalid_params_are_sanitized():
+    """
+    1) Login
+    2) Ir con limit=3 y comprobar filas <= 3 (si hay tabla)
+    3) Ir con metric inválido y comprobar que vuelve a Downloads (si hay tabla)
+    4) Ir con days inválido y comprobar que la página carga (no rompe)
+    """
+    driver = initialize_driver()
+    host = get_host_for_selenium_testing()
+
+    try:
+        login(driver, host)
+
+        # 2) limit=3, days=7
+        driver.get(f"{host}/datasets/top?metric=downloads&days=7&limit=3")
+        wait_for_page_to_load(driver)
+
+        body_text = driver.find_element(By.TAG_NAME, "body").text
+        has_table = len(driver.find_elements(By.TAG_NAME, "table")) > 0
+        has_empty = "No datasets found" in body_text
+        assert has_table or has_empty, "No hay tabla ni mensaje de 'No datasets found.'"
+
+        if has_table:
+            rows = driver.find_elements(By.CSS_SELECTOR, "table tbody tr")
+            assert len(rows) <= 3, f"Esperaba <=3 filas, pero hay {len(rows)}"
+
+        # 3) metric inválido -> debe sanearse a downloads
+        driver.get(f"{host}/datasets/top?metric=INVALID&days=7&limit=5")
+        wait_for_page_to_load(driver)
+
+        if len(driver.find_elements(By.TAG_NAME, "table")) > 0:
+            ths = driver.find_elements(By.CSS_SELECTOR, "table thead th")
+            headers = [th.text.strip() for th in ths]
+            assert "Downloads" in headers, f"metric inválido no se saneó a downloads. Cabeceras: {headers}"
+
+        # 4) days inválido -> debe sanearse a 30 (no se ve directo, pero no debe romper)
+        driver.get(f"{host}/datasets/top?metric=downloads&days=999&limit=5")
+        wait_for_page_to_load(driver)
+
+        body_text = driver.find_element(By.TAG_NAME, "body").text
+        assert "Top" in body_text, "La página no cargó correctamente con days inválido"
+
+    finally:
+        close_driver(driver)
