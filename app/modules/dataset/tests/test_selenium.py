@@ -550,69 +550,68 @@ def test_materials_statistics_page_loads():
         close_driver(driver)
 
 
-# def test_edit_material_record_from_edit_dataset_page():
-#     """
-#     Edita un MaterialRecord desde /materials/<id>/edit (edit dataset),
-#     entrando desde /dataset/list (list_materials_dataset.html).
-#     """
-#     driver = initialize_driver()
-#     host = get_host_for_selenium_testing()
+def test_edit_material_record_from_edit_dataset_page():
+    """
+    Edita un MaterialRecord desde /materials/<id>/edit (edit dataset),
+    entrando desde /dataset/list (list_materials_dataset.html).
+    """
+    driver = initialize_driver()
+    host = get_host_for_selenium_testing()
 
-#     try:
-#         login(driver, host)
+    try:
+        login(driver, host)
 
-#         dataset_id, dataset_title = create_materials_dataset_and_go_to_csv_upload(driver, host, "EditRecord")
-#         upload_csv_for_dataset(driver)
+        dataset_id, dataset_title = create_materials_dataset_and_go_to_csv_upload(driver, host, "EditRecord")
+        upload_csv_for_dataset(driver)
 
-#         # 1) Ir a /materials/<id>/edit desde /dataset/list
-#         go_to_dataset_edit_from_list(driver, host, dataset_title)
+        # 1) Ir a /materials/<id>/edit desde /dataset/list
+        go_to_dataset_edit_from_list(driver, host, dataset_title)
 
-#         # 2) Click en el primer enlace de editar record (normalmente incluye ?return_to=edit)
-#         record_edit_link = WebDriverWait(driver, 10).until(
-#             EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, '/records/') and contains(@href, '/edit')]"))
-#         )
-#         href = record_edit_link.get_attribute("href")
-#         record_id = extract_record_id_from_href(href)
-#         assert record_id, f"No pude extraer record_id del href: {href}"
+        # 2) Click en el primer enlace de editar record (normalmente incluye ?return_to=edit)
+        record_edit_link = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, '/records/') and contains(@href, '/edit')]"))
+        )
+        href = record_edit_link.get_attribute("href")
+        record_id = extract_record_id_from_href(href)
+        assert record_id, f"No pude extraer record_id del href: {href}"
 
-#         record_edit_link.click()
-#         wait_for_page_to_load(driver)
+        record_edit_link.click()
+        wait_for_page_to_load(driver)
 
-#         # 3) Ya estamos en /materials/<id>/records/<record_id>/edit -> aquí sí existe property_value
-#         new_value = "9999.0"
-#         property_value_input = WebDriverWait(driver, 10).until(
-#             EC.presence_of_element_located((By.NAME, "property_value"))
-#         )
-#         property_value_input.clear()
-#         property_value_input.send_keys(new_value)
+        # 3) Ya estamos en /materials/<id>/records/<record_id>/edit -> aquí sí existe property_value
+        new_value = "9999.0"
+        property_value_input = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.NAME, "property_value"))
+        )
+        property_value_input.clear()
+        property_value_input.send_keys(new_value)
 
-#         submit_btn = WebDriverWait(driver, 10).until(
-#             EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit'], input[type='submit']"))
-#         )
-#         submit_btn.click()
-#         wait_for_page_to_load(driver)
+        submit_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit'], input[type='submit']"))
+        )
+        submit_btn.click()
+        wait_for_page_to_load(driver)
 
-#          # 4) Validación robusta: leer /view_csv y buscar el record por ID (vía fetch)
-#         wait_until_csv_reflects_value(driver, host, dataset_id, record_id, "9999.0")
+        # 4) Validación robusta: leer /view_csv y buscar el record por ID (vía fetch)
+        wait_until_csv_reflects_value(driver, host, dataset_id, record_id, "9999.0")
 
-#         data = get_view_csv_json(driver, host, dataset_id)
-#         row = next((r for r in data["rows"] if str(r.get("record_id", "")).strip() == str(record_id)), None)
-#         assert row is not None, f"No encontré el record_id={record_id} en el CSV regenerado"
+        data = get_view_csv_json(driver, host, dataset_id)
+        row = next((r for r in data["rows"] if str(r.get("record_id", "")).strip() == str(record_id)), None)
+        assert row is not None, f"No encontré el record_id={record_id} en el CSV regenerado"
 
-#         csv_value = str(row.get("property_value", "")).strip()
-#         assert csv_value in {"9999", "9999.0", "9999.00"}, f"property_value no actualizado. CSV='{csv_value}'"
+        csv_value = str(row.get("property_value", "")).strip()
+        assert csv_value in {"9999", "9999.0", "9999.00"}, f"property_value no actualizado. CSV='{csv_value}'"
 
+        # OJO: tras editar se regenera el CSV y ya debe incluir record_id
+        row = next((r for r in data["rows"] if str(r.get("record_id", "")).strip() == str(record_id)), None)
+        assert row is not None, f"No encontré el record_id={record_id} en el CSV regenerado"
 
-#         # OJO: tras editar se regenera el CSV y ya debe incluir record_id
-#         row = next((r for r in data["rows"] if str(r.get("record_id", "")).strip() == str(record_id)), None)
-#         assert row is not None, f"No encontré el record_id={record_id} en el CSV regenerado"
+        # Comparación tolerante (string/float)
+        csv_value = str(row.get("property_value", "")).strip()
+        assert csv_value in {"9999", "9999.0", "9999.00"}, f"property_value no actualizado. CSV='{csv_value}'"
 
-#         # Comparación tolerante (string/float)
-#         csv_value = str(row.get("property_value", "")).strip()
-#         assert csv_value in {"9999", "9999.0", "9999.00"}, f"property_value no actualizado. CSV='{csv_value}'"
-
-#     finally:
-#         close_driver(driver)
+    finally:
+        close_driver(driver)
 
 
 def test_delete_material_record_from_edit_dataset_page():
