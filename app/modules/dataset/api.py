@@ -7,7 +7,6 @@ from werkzeug.utils import secure_filename
 from app import db
 from app.modules.dataset.models import MaterialsDataset
 from app.modules.dataset.repositories import MaterialRecordRepository, MaterialsDatasetRepository
-from core.resources.generic_resource import create_resource
 from core.serialisers.serializer import Serializer
 
 # Existing serializers for UVL datasets
@@ -56,7 +55,168 @@ materials_dataset_fields = {
 
 materials_dataset_serializer = Serializer(materials_dataset_fields)
 
-MaterialsDatasetResource = create_resource(MaterialsDataset, materials_dataset_serializer)
+
+class MaterialsDatasetResource(Resource):
+    """CRUD operations for MaterialsDataset"""
+
+    def __init__(self):
+        self.repository = MaterialsDatasetRepository()
+
+    def get(self, id=None):
+        """Get MaterialsDataset(s)
+        ---
+        tags:
+          - MaterialsDataset
+        summary: Get dataset(s)
+        description: Retrieve a single MaterialsDataset by ID or list all datasets
+        parameters:
+          - name: id
+            in: path
+            type: integer
+            required: false
+            description: ID of the MaterialsDataset (omit to list all)
+        responses:
+          200:
+            description: MaterialsDataset or list of datasets
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                created_at:
+                  type: string
+                  format: date-time
+                csv_file_path:
+                  type: string
+                materials_count:
+                  type: integer
+                unique_materials:
+                  type: array
+                  items:
+                    type: string
+                unique_properties:
+                  type: array
+                  items:
+                    type: string
+          404:
+            description: MaterialsDataset not found
+        """
+        if id:
+            dataset = self.repository.get_by_id(id)
+            if not dataset:
+                return {"message": "MaterialsDataset not found"}, 404
+            return materials_dataset_serializer.serialize(dataset), 200
+        else:
+            datasets = MaterialsDataset.query.all()
+            return {"items": [materials_dataset_serializer.serialize(d) for d in datasets]}, 200
+
+    def post(self):
+        """Create a new MaterialsDataset
+        ---
+        tags:
+          - MaterialsDataset
+        summary: Create dataset
+        description: Create a new MaterialsDataset
+        parameters:
+          - name: body
+            in: body
+            required: true
+            schema:
+              type: object
+              properties:
+                csv_file_path:
+                  type: string
+                  description: Path to CSV file
+                  example: /uploads/materials.csv
+        responses:
+          201:
+            description: MaterialsDataset created successfully
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: MaterialsDataset created successfully
+                id:
+                  type: integer
+                  example: 1
+          400:
+            description: No input data provided
+        """
+        data = request.get_json()
+        if not data:
+            return {"message": "No input data provided"}, 400
+
+        dataset = MaterialsDataset(**data)
+        db.session.add(dataset)
+        db.session.commit()
+        return {"message": "MaterialsDataset created successfully", "id": dataset.id}, 201
+
+    def put(self, id):
+        """Update a MaterialsDataset
+        ---
+        tags:
+          - MaterialsDataset
+        summary: Update dataset
+        description: Update an existing MaterialsDataset
+        parameters:
+          - name: id
+            in: path
+            type: integer
+            required: true
+            description: ID of the MaterialsDataset
+          - name: body
+            in: body
+            required: true
+            schema:
+              type: object
+              properties:
+                csv_file_path:
+                  type: string
+                  description: Path to CSV file
+        responses:
+          200:
+            description: MaterialsDataset updated successfully
+          404:
+            description: MaterialsDataset not found
+        """
+        dataset = self.repository.get_by_id(id)
+        if not dataset:
+            return {"message": "MaterialsDataset not found"}, 404
+
+        data = request.get_json()
+        for key, value in data.items():
+            if hasattr(dataset, key):
+                setattr(dataset, key, value)
+        db.session.commit()
+        return materials_dataset_serializer.serialize(dataset), 200
+
+    def delete(self, id):
+        """Delete a MaterialsDataset
+        ---
+        tags:
+          - MaterialsDataset
+        summary: Delete dataset
+        description: Delete an existing MaterialsDataset
+        parameters:
+          - name: id
+            in: path
+            type: integer
+            required: true
+            description: ID of the MaterialsDataset
+        responses:
+          204:
+            description: MaterialsDataset deleted successfully
+          404:
+            description: MaterialsDataset not found
+        """
+        dataset = self.repository.get_by_id(id)
+        if not dataset:
+            return {"message": "MaterialsDataset not found"}, 404
+
+        db.session.delete(dataset)
+        db.session.commit()
+        return {"message": "MaterialsDataset deleted successfully"}, 204
 
 
 # Custom endpoint classes for MaterialsDataset operations
@@ -71,7 +231,58 @@ class MaterialsDatasetUploadResource(Resource):
         self.repository = MaterialsDatasetRepository()
 
     def post(self, id):
-        """Upload and parse CSV file for a MaterialsDataset"""
+        """Upload and parse CSV file for a MaterialsDataset
+        ---
+        tags:
+          - MaterialsDataset
+        summary: Upload CSV file with material records
+        description: Upload a CSV file containing material property data and create material records
+        parameters:
+          - name: id
+            in: path
+            type: integer
+            required: true
+            description: ID of the MaterialsDataset
+          - name: file
+            in: formData
+            type: file
+            required: true
+            description: CSV file with material records
+        consumes:
+          - multipart/form-data
+        responses:
+          200:
+            description: CSV uploaded and parsed successfully
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: CSV uploaded and parsed successfully
+                records_created:
+                  type: integer
+                  example: 42
+                dataset_id:
+                  type: integer
+                  example: 1
+          400:
+            description: Bad request (invalid file or parsing error)
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                error:
+                  type: string
+          404:
+            description: MaterialsDataset not found
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: MaterialsDataset not found
+        """
         # Get the MaterialsDataset
         materials_dataset = self.repository.get_by_id(id)
         if not materials_dataset:
@@ -126,7 +337,68 @@ class MaterialRecordsResource(Resource):
         self.repository = MaterialRecordRepository()
 
     def get(self, dataset_id):
-        """Get all material records for a dataset with optional pagination"""
+        """Get all material records for a dataset with optional pagination
+        ---
+        tags:
+          - MaterialRecords
+        summary: List material records
+        description: Get all material records for a specific dataset with pagination support
+        parameters:
+          - name: dataset_id
+            in: path
+            type: integer
+            required: true
+            description: ID of the MaterialsDataset
+          - name: page
+            in: query
+            type: integer
+            default: 1
+            description: Page number
+          - name: per_page
+            in: query
+            type: integer
+            default: 100
+            description: Number of records per page
+        responses:
+          200:
+            description: List of material records
+            schema:
+              type: object
+              properties:
+                records:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      material_name:
+                        type: string
+                      chemical_formula:
+                        type: string
+                      property_name:
+                        type: string
+                      property_value:
+                        type: number
+                      property_unit:
+                        type: string
+                      temperature:
+                        type: number
+                      pressure:
+                        type: number
+                total:
+                  type: integer
+                  example: 150
+                page:
+                  type: integer
+                  example: 1
+                per_page:
+                  type: integer
+                  example: 100
+                total_pages:
+                  type: integer
+                  example: 2
+        """
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 100, type=int)
 
@@ -155,7 +427,60 @@ class MaterialRecordsSearchResource(Resource):
         self.repository = MaterialRecordRepository()
 
     def get(self, dataset_id):
-        """Search material records by name or formula"""
+        """Search material records by name or formula
+        ---
+        tags:
+          - MaterialRecords
+        summary: Search material records
+        description: Search for material records by material name or chemical formula
+        parameters:
+          - name: dataset_id
+            in: path
+            type: integer
+            required: true
+            description: ID of the MaterialsDataset
+          - name: q
+            in: query
+            type: string
+            required: true
+            description: Search query (material name or chemical formula)
+            example: Silicon
+        responses:
+          200:
+            description: Search results
+            schema:
+              type: object
+              properties:
+                records:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      material_name:
+                        type: string
+                      chemical_formula:
+                        type: string
+                      property_name:
+                        type: string
+                      property_value:
+                        type: number
+                total:
+                  type: integer
+                  example: 5
+                search_term:
+                  type: string
+                  example: Silicon
+          400:
+            description: Missing search query parameter
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: Search query parameter 'q' is required
+        """
         search_term = request.args.get("q", "", type=str)
 
         if not search_term:
@@ -177,7 +502,64 @@ class MaterialsDatasetStatisticsResource(Resource):
         self.repository = MaterialsDatasetRepository()
 
     def get(self, id):
-        """Get statistics for a materials dataset"""
+        """Get statistics for a materials dataset
+        ---
+        tags:
+          - MaterialsDataset
+        summary: Get dataset statistics
+        description: Retrieve comprehensive statistics about a materials dataset
+        parameters:
+          - name: id
+            in: path
+            type: integer
+            required: true
+            description: ID of the MaterialsDataset
+        responses:
+          200:
+            description: Dataset statistics
+            schema:
+              type: object
+              properties:
+                dataset_id:
+                  type: integer
+                  example: 1
+                total_records:
+                  type: integer
+                  description: Total number of material records
+                  example: 150
+                unique_materials:
+                  type: array
+                  items:
+                    type: string
+                  description: List of unique material names
+                  example: ["Silicon", "Graphene", "Diamond"]
+                unique_properties:
+                  type: array
+                  items:
+                    type: string
+                  description: List of unique property names
+                  example: ["density", "melting_point", "thermal_conductivity"]
+                materials_count:
+                  type: integer
+                  description: Count of unique materials
+                  example: 3
+                properties_count:
+                  type: integer
+                  description: Count of unique properties
+                  example: 3
+                csv_file_path:
+                  type: string
+                  description: Path to the CSV file
+                  example: /uploads/materials_dataset_1.csv
+          404:
+            description: MaterialsDataset not found
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: MaterialsDataset not found
+        """
         materials_dataset = self.repository.get_by_id(id)
         if not materials_dataset:
             return {"message": "MaterialsDataset not found"}, 404
