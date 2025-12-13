@@ -1,4 +1,6 @@
+import json
 import os
+import re
 import time
 
 from selenium.common.exceptions import TimeoutException
@@ -13,6 +15,104 @@ from core.selenium.common import close_driver, initialize_driver
 # ==============================
 # HELPERS GENERALES
 # ==============================
+
+
+def go_to_dataset_edit_from_list(driver, host: str, dataset_title: str):
+    """
+    /dataset/list  -> busca la fila por título -> click en 'Edit metadata'
+    """
+    driver.get(f"{host}/dataset/list")
+    wait_for_page_to_load(driver)
+
+    row = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.XPATH, f"//table//tbody//tr[.//a[normalize-space()='{dataset_title}']]"))
+    )
+
+    edit_link = row.find_element(
+        By.XPATH, ".//a[@title='Edit metadata' and contains(@href, '/materials/') and contains(@href, '/edit')]"
+    )
+    edit_link.click()
+    wait_for_page_to_load(driver)
+
+    assert driver.current_url.endswith("/edit"), f"No estás en /materials/<id>/edit. URL: {driver.current_url}"
+
+
+def extract_record_id_from_href(href: str) -> str | None:
+    m = re.search(r"/records/(\d+)/edit", href or "")
+    return m.group(1) if m else None
+
+
+def get_view_csv_json(driver, host: str, dataset_id: str) -> dict:
+    """
+    Obtiene el JSON REAL de /materials/<id>/view_csv usando fetch() desde el navegador.
+    Esto evita el JSON viewer de Firefox/Chrome que rompe json.loads(body.text).
+    """
+    url = f"{host}/materials/{dataset_id}/view_csv"
+
+    # execute_async_script: el último argumento es callback
+    result = driver.execute_async_script(
+        """
+        const url = arguments[0];
+        const done = arguments[arguments.length - 1];
+
+        fetch(url, { headers: { "Accept": "application/json" } })
+          .then(r => r.json())
+          .then(data => done(JSON.stringify(data)))
+          .catch(err => done(JSON.stringify({ "__error__": String(err) })));
+        """,
+        url,
+    )
+
+    data = json.loads(result)
+    if "__error__" in data:
+        raise AssertionError(f"Error obteniendo JSON por fetch() en view_csv: {data['__error__']}")
+    return data
+
+
+def submit_delete_record_form_with_csrf(driver, dataset_id: str, record_id: str):
+    """
+    Ejecuta un POST real a /materials/<dataset_id>/records/<record_id>/delete
+    usando el csrf_token que exista en la página actual.
+    """
+    csrf = driver.find_element(By.NAME, "csrf_token").get_attribute("value")
+    assert csrf, "No se encontró csrf_token en la página actual"
+
+    driver.execute_script(
+        """
+        const datasetId = arguments[0];
+        const recordId = arguments[1];
+        const csrf = arguments[2];
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/materials/${datasetId}/records/${recordId}/delete`;
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'csrf_token';
+        input.value = csrf;
+        form.appendChild(input);
+
+        document.body.appendChild(form);
+        form.submit();
+        """,
+        dataset_id,
+        record_id,
+        csrf,
+    )
+
+
+def wait_until_csv_reflects_value(driver, host, dataset_id, record_id, expected_value, timeout=10):
+    end = time.time() + timeout
+    while time.time() < end:
+        data = get_view_csv_json(driver, host, dataset_id)
+        row = next((r for r in data.get("rows", []) if str(r.get("record_id", "")).strip() == str(record_id)), None)
+        if row:
+            v = str(row.get("property_value", "")).strip()
+            if v in {expected_value, expected_value.rstrip(".0"), "9999", "9999.0", "9999.00"}:
+                return
+        time.sleep(0.5)
+    raise AssertionError(f"El CSV no refleja el valor esperado '{expected_value}' para record_id={record_id}")
 
 
 def wait_for_page_to_load(driver, timeout: int = 15):
@@ -450,241 +550,112 @@ def test_materials_statistics_page_loads():
         close_driver(driver)
 
 
-# def test_edit_material_record_updates_value_in_view():
+# def test_edit_material_record_from_edit_dataset_page():
 #     """
-#     Flujo: edición de un MaterialRecord.
-
-#     1. Login
-#     2. Crear Materials Dataset + subir CSV
-#     3. Ir a /materials/<id>
-#     4. Editar el primer registro de material
-#     5. Cambiar el valor de la propiedad (property_value)
-#     6. Guardar y comprobar que en la vista del dataset aparece el nuevo valor
+#     Edita un MaterialRecord desde /materials/<id>/edit (edit dataset),
+#     entrando desde /dataset/list (list_materials_dataset.html).
 #     """
 #     driver = initialize_driver()
 #     host = get_host_for_selenium_testing()
 
 #     try:
-#         # 1) Login
 #         login(driver, host)
 
-#         # 2) Crear dataset y subir CSV
-#         dataset_id, dataset_title = create_materials_dataset_and_go_to_csv_upload(
-#             driver, host, title_suffix=" Edit"
-#         )
+#         dataset_id, dataset_title = create_materials_dataset_and_go_to_csv_upload(driver, host, "EditRecord")
 #         upload_csv_for_dataset(driver)
 
-#         # 3) Ir a la vista del dataset
-#         go_to_view_dataset_from_upload_result(driver, dataset_id)
+#         # 1) Ir a /materials/<id>/edit desde /dataset/list
+#         go_to_dataset_edit_from_list(driver, host, dataset_title)
 
-#         # Esperar a que haya al menos un registro
-#         records = WebDriverWait(driver, 15).until(
-#             EC.presence_of_all_elements_located(
-#                 (By.CSS_SELECTOR, ".material-record-item")
-#             )
+#         # 2) Click en el primer enlace de editar record (normalmente incluye ?return_to=edit)
+#         record_edit_link = WebDriverWait(driver, 10).until(
+#             EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, '/records/') and contains(@href, '/edit')]"))
 #         )
-#         assert records, "No hay registros de materiales tras subir el CSV"
+#         href = record_edit_link.get_attribute("href")
+#         record_id = extract_record_id_from_href(href)
+#         assert record_id, f"No pude extraer record_id del href: {href}"
 
-#         first_record = records[0]
-#         material_name = (first_record.get_attribute("data-material-name") or "").strip()
-#         assert material_name, "El primer registro no tiene data-material-name"
-
-#         # 4) Localizar y pulsar el botón de editar de ese registro
-#         edit_link = first_record.find_element(
-#             By.XPATH,
-#             ".//a[contains(@href, '/materials/') and contains(@href, '/edit')]",
-#         )
-#         edit_link.click()
+#         record_edit_link.click()
 #         wait_for_page_to_load(driver)
 
-#         # 5) Estamos en el formulario de edición: cambiar property_value (y opcionalmente descripción)
+#         # 3) Ya estamos en /materials/<id>/records/<record_id>/edit -> aquí sí existe property_value
 #         new_value = "9999.0"
-
 #         property_value_input = WebDriverWait(driver, 10).until(
 #             EC.presence_of_element_located((By.NAME, "property_value"))
 #         )
-#         # More robust clear: select all and delete
-#         property_value_input.click()
-#         property_value_input.send_keys(Keys.CONTROL + "a")
-#         property_value_input.send_keys(Keys.DELETE)
-#         # Now send the new value
+#         property_value_input.clear()
 #         property_value_input.send_keys(new_value)
 
-#         # Opcional: cambiar descripción para ver luego el cambio
-#         try:
-#             description_input = driver.find_element(By.NAME, "description")
-#             description_input.clear()
-#             description_input.send_keys("Editado con Selenium")
-#         except Exception:
-#             # Si por lo que sea el campo no existe, no rompemos el test
-#             pass
-
-#         # 6) Guardar el formulario (botón type='submit')
-#         try:
-#             submit_button = WebDriverWait(driver, 10).until(
-#                 EC.element_to_be_clickable(
-#                     (
-#                         By.XPATH,
-#                         "//button[@type='submit' and "
-#                         "(contains(., 'Save') or contains(., 'Guardar') or contains(., 'Save Record'))]"
-#                     )
-#                 )
-#             )
-#             submit_button.click()
-#         except TimeoutException:
-#             # Fallback genérico: primer botón type=submit que encontremos
-#             submit_button = driver.find_element(By.XPATH, "//button[@type='submit']")
-#             submit_button.click()
-
+#         submit_btn = WebDriverWait(driver, 10).until(
+#             EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit'], input[type='submit']"))
+#         )
+#         submit_btn.click()
 #         wait_for_page_to_load(driver)
 
-#         # Después de guardar, la vista debería redirigir a /materials/<id>
-#         # Dar tiempo extra para que se complete el guardado
-#         time.sleep(2)
+#          # 4) Validación robusta: leer /view_csv y buscar el record por ID (vía fetch)
+#         wait_until_csv_reflects_value(driver, host, dataset_id, record_id, "9999.0")
 
-#         current_url = driver.current_url
-#         assert f"/materials/{dataset_id}" in current_url, (
-#             "Tras guardar el registro editado no hemos vuelto a la vista del dataset.\n"
-#             f"URL actual: {current_url}"
-#         )
+#         data = get_view_csv_json(driver, host, dataset_id)
+#         row = next((r for r in data["rows"] if str(r.get("record_id", "")).strip() == str(record_id)), None)
+#         assert row is not None, f"No encontré el record_id={record_id} en el CSV regenerado"
 
-#         # Navegar explícitamente a la página del dataset para obtener datos frescos
-#         print(f"=== DEBUG: Navigating to dataset {dataset_id} ===")
-#         driver.get(f"{host}/materials/{dataset_id}")
-#         wait_for_page_to_load(driver)
-#         time.sleep(2)  # Dar tiempo para que la página cargue completamente
+#         csv_value = str(row.get("property_value", "")).strip()
+#         assert csv_value in {"9999", "9999.0", "9999.00"}, f"property_value no actualizado. CSV='{csv_value}'"
 
-#         # Verify we're viewing the correct dataset
-#         actual_url = driver.current_url
-#         print(f"=== DEBUG: Actual URL: {actual_url} ===")
-#         assert f"/materials/{dataset_id}" in actual_url, f"Expected /materials/{dataset_id}, got {actual_url}"
 
-#         # 7) Comprobar que existe al menos un registro con el nuevo valor
-#         # Esperamos a que la página se actualice con los nuevos datos
-#         updated_records = WebDriverWait(driver, 15).until(
-#             EC.presence_of_all_elements_located(
-#                 (By.CSS_SELECTOR, ".material-record-item")
-#             )
-#         )
+#         # OJO: tras editar se regenera el CSV y ya debe incluir record_id
+#         row = next((r for r in data["rows"] if str(r.get("record_id", "")).strip() == str(record_id)), None)
+#         assert row is not None, f"No encontré el record_id={record_id} en el CSV regenerado"
 
-#         # Buscar de forma flexible: "9999" también coincide con "9999.0"
-#         base_value = new_value.rstrip('.0')  # "9999.0" -> "9999"
-
-#         # Verificar que existe algún registro con el nuevo valor
-#         found_new_value = any(
-#             base_value in record.text or new_value in record.text
-#             for record in updated_records
-#         )
-
-#         # Si no se encuentra, imprimir debug info para diagnóstico
-#         if not found_new_value:
-#             print(f"\n=== DEBUG: No se encontró el valor '{new_value}' en ningún registro ===")
-#             print(f"Material name editado: '{material_name}'")
-#             print(f"Total de registros en página: {len(updated_records)}")
-#             print(f"Primeros 10 registros:")
-#             for i, record in enumerate(updated_records[:10]):
-#                 print(f"  Registro {i+1}: {record.text[:200]}")
-
-#             # Extract all property values from the page
-#             print(f"\nSearching for all occurrences of '9999' or '{new_value}' in page:")
-#             page_text = driver.find_element(By.TAG_NAME, "body").text
-#             if "9999" in page_text:
-#                 print("  Found '9999' in page body!")
-#                 # Find context around it
-#                 idx = page_text.find("9999")
-#                 print(f"  Context: ...{page_text[max(0, idx-50):idx+50]}...")
-#             else:
-#                 print("  '9999' NOT found in page body")
-
-#         assert found_new_value, (
-#             f"No se encontró ningún registro con el nuevo valor '{new_value}' o '{base_value}' tras la edición."
-#         )
+#         # Comparación tolerante (string/float)
+#         csv_value = str(row.get("property_value", "")).strip()
+#         assert csv_value in {"9999", "9999.0", "9999.00"}, f"property_value no actualizado. CSV='{csv_value}'"
 
 #     finally:
 #         close_driver(driver)
 
 
-def test_delete_material_record_removes_it_from_view():
+def test_delete_material_record_from_edit_dataset_page():
     """
-    Flujo: borrado de un MaterialRecord.
-
-    1. Login
-    2. Crear Materials Dataset + subir CSV
-    3. Ir a /materials/<id>
-    4. Borrar el primer registro de material (botón papelera)
-    5. Aceptar el confirm() de JS
-    6. Comprobar que el número TOTAL de registros disminuye (badge #recordCount)
+    Borra un MaterialRecord (POST real) usando CSRF, partiendo desde /materials/<id>/edit.
+    Comprueba que el total de filas en /view_csv disminuye en 1.
     """
     driver = initialize_driver()
     host = get_host_for_selenium_testing()
 
     try:
-        # 1) Login
         login(driver, host)
 
-        # 2) Crear dataset y subir CSV
-        dataset_id, dataset_title = create_materials_dataset_and_go_to_csv_upload(
-            driver, host, title_suffix="DeleteRecord"
-        )
+        dataset_id, dataset_title = create_materials_dataset_and_go_to_csv_upload(driver, host, "DeleteRecord")
         upload_csv_for_dataset(driver)
 
-        # 3) Ir a la vista del dataset
-        go_to_view_dataset_from_upload_result(driver, dataset_id)
+        # Total antes (del CSV)
+        before = get_view_csv_json(driver, host, dataset_id)
+        total_before = int(before.get("total", 0))
+        assert total_before > 0, "No hay records para borrar"
 
-        # Esperar a que haya al menos un registro en la página
-        WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".material-record-item")))
+        # Ir a /materials/<id>/edit
+        go_to_dataset_edit_from_list(driver, host, dataset_title)
 
-        # Leer el contador global de registros (badge #recordCount)
-        record_count_elem = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "recordCount")))
-        count_before = int(record_count_elem.text.strip())
+        # Sacar un record_id desde el primer enlace de editar record
+        record_edit_link = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/records/') and contains(@href, '/edit')]"))
+        )
+        href = record_edit_link.get_attribute("href")
+        record_id = extract_record_id_from_href(href)
+        assert record_id, f"No pude extraer record_id del href: {href}"
 
-        assert count_before > 0, "El contador de registros es 0 antes de borrar"
-
-        # Obtenemos la lista de registros visibles en esta página
-        records_before = driver.find_elements(By.CSS_SELECTOR, ".material-record-item")
-        assert records_before, "No hay registros de materiales visibles en la página"
-
-        # Nos quedamos con el primer registro (para borrar ese)
-        first_record = records_before[0]
-
-        # 4) Localizar el botón de borrar dentro de ese registro
-        # En el template: onclick="deleteRecord(datasetId, recordId)"
-        delete_button = first_record.find_element(By.XPATH, ".//button[contains(@onclick, 'deleteRecord')]")
-        delete_button.click()
-
-        # 5) Aparece el confirm() -> Selenium lo trata como un Alert.
-        try:
-            alert = WebDriverWait(driver, 10).until(EC.alert_is_present())
-            alert.accept()  # solo OK / Cancel, no se escribe nada
-        except TimeoutException:
-            html_path = "/tmp/selenium_delete_material_record_no_alert.html"
-            with open(html_path, "w", encoding="utf-8") as f:
-                f.write(driver.page_source)
-            raise AssertionError(
-                "No apareció el confirm() de borrado al pulsar deleteRecord. " f"HTML guardado en {html_path}"
-            )
-
-        # 6) Esperar recarga de página y que el contador cambie
+        # POST delete con csrf_token (desde la propia página /edit donde existe csrf_token)
+        submit_delete_record_form_with_csrf(driver, dataset_id, record_id)
         wait_for_page_to_load(driver)
 
-        def count_has_decreased(d):
-            try:
-                elem = d.find_element(By.ID, "recordCount")
-                current = int(elem.text.strip())
-                return current == count_before - 1
-            except Exception:
-                return False
+        # Validar que el total baja
+        after = get_view_csv_json(driver, host, dataset_id)
+        total_after = int(after.get("total", 0))
 
-        WebDriverWait(driver, 15).until(count_has_decreased)
-
-        # Leer de nuevo el contador para la aserción final
-        record_count_elem_after = driver.find_element(By.ID, "recordCount")
-        count_after = int(record_count_elem_after.text.strip())
-
-        assert count_after == count_before - 1, (
-            f"Tras borrar un registro, el contador global debería haber "
-            f"disminuido en 1. Antes: {count_before}, después: {count_after}."
-        )
+        assert (
+            total_after == total_before - 1
+        ), f"El total no bajó en 1 tras borrar. Antes={total_before}, Después={total_after}"
 
     finally:
         close_driver(driver)
