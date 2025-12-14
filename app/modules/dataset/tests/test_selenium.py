@@ -279,6 +279,21 @@ def go_to_view_dataset_from_upload_result(driver, dataset_id: str):
     )
 
 
+def _wait_for_recommendations_wrapper_update(driver, wrapper_elem, old_html, timeout=15):
+    """
+    Espera a que el contenido del wrapper cambie (AJAX).
+    """
+
+    def changed(d):
+        try:
+            new_html = wrapper_elem.get_attribute("innerHTML") or ""
+            return new_html != old_html and len(new_html.strip()) > 0
+        except Exception:
+            return False
+
+    WebDriverWait(driver, timeout).until(changed)
+
+
 # ==============================
 # TESTS
 # ==============================
@@ -816,6 +831,178 @@ def test_top_global_limit_and_invalid_params_are_sanitized():
 
         body_text = driver.find_element(By.TAG_NAME, "body").text
         assert "Top" in body_text, "La página no cargó correctamente con days inválido"
+
+    finally:
+        close_driver(driver)
+
+
+def test_view_dataset_recommendations_filters_and_pagination():
+    """
+    Comprueba recomendaciones en view_materials_dataset.html
+
+    - Se crean muchos datasets similares (mismos tags y mismo usuario)
+    - Se verifica que hay recomendaciones visibles
+    - Se prueban filtros (Tags/Authors/Properties/All) -> AJAX termina
+    - Se prueba paginación (Next/Previous) cuando total_pages > 1
+    """
+    driver = initialize_driver()
+    host = get_host_for_selenium_testing()
+
+    # -------------------------
+    # Helpers locales del test
+    # -------------------------
+    def install_fetch_spy():
+        driver.execute_script(
+            """
+            if (!window.__recFetchSpyInstalled) {
+                window.__recFetchSpyInstalled = true;
+                window.__recFetchStartedAt = 0;
+                window.__recFetchFinishedAt = 0;
+
+                const origFetch = window.fetch.bind(window);
+                window.fetch = function(...args) {
+                    try {
+                        const url = (typeof args[0] === 'string') ? args[0] :
+                        (args[0] && args[0].url) ? args[0].url : '';
+                        if (url && url.includes('/recommendations')) {
+                            window.__recFetchStartedAt = Date.now();
+                        }
+                    } catch (e) {}
+
+                    return origFetch(...args).then(resp => {
+                        try {
+                            const respUrl = resp && resp.url ? resp.url : '';
+                            if (respUrl && respUrl.includes('/recommendations')) {
+                                window.__recFetchFinishedAt = Date.now();
+                            }
+                        } catch (e) {}
+                        return resp;
+                    });
+                };
+            }
+            """
+        )
+
+    def wait_for_recommendations_fetch(prev_finished_at, timeout=15):
+        WebDriverWait(driver, timeout).until(
+            lambda d: d.execute_script("return window.__recFetchFinishedAt || 0;") > prev_finished_at
+        )
+
+    def click_filter(btn_text: str):
+        prev_finished = driver.execute_script("return window.__recFetchFinishedAt || 0;")
+
+        btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable(
+                (
+                    By.XPATH,
+                    f"//button[contains(@class,'filter-btn') and normalize-space()='{btn_text}']",
+                )
+            )
+        )
+        btn.click()
+
+        # esperar fin AJAX real
+        wait_for_recommendations_fetch(prev_finished, timeout=20)
+
+        # wrapper sigue existiendo
+        wrapper = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".recommendations-table-wrapper"))
+        )
+        assert wrapper.is_displayed(), f"Wrapper no visible tras filtro {btn_text}"
+
+        # algo debe renderizarse: rows o alerta info
+        WebDriverWait(driver, 10).until(
+            lambda d: len(d.find_elements(By.CSS_SELECTOR, ".recommendation-row")) > 0
+            or len(d.find_elements(By.CSS_SELECTOR, ".alert")) > 0
+        )
+
+    def click_pagination(btn_text: str):
+        prev_finished = driver.execute_script("return window.__recFetchFinishedAt || 0;")
+
+        btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable(
+                (By.XPATH, f"//ul[contains(@class,'pagination')]//a[normalize-space()='{btn_text}']")
+            )
+        )
+        # si está disabled no debe clicar
+        parent_li = btn.find_element(By.XPATH, "./parent::li")
+        classes = parent_li.get_attribute("class") or ""
+        if "disabled" in classes:
+            return False  # no se puede clicar
+
+        btn.click()
+        wait_for_recommendations_fetch(prev_finished, timeout=20)
+
+        # debe renderizar algo
+        WebDriverWait(driver, 10).until(
+            lambda d: len(d.find_elements(By.CSS_SELECTOR, ".recommendation-row")) > 0
+            or len(d.find_elements(By.CSS_SELECTOR, ".alert")) > 0
+        )
+        return True
+
+    def get_active_page_number():
+        active = driver.find_elements(By.CSS_SELECTOR, "ul.pagination li.page-item.active a.page-link")
+        if not active:
+            return None
+        txt = (active[0].text or "").strip()
+        return int(txt) if txt.isdigit() else None
+
+    try:
+        # 1) Login
+        login(driver, host)
+
+        # 2) Crear dataset objetivo
+        target_id, _ = create_materials_dataset_and_go_to_csv_upload(driver, host, title_suffix="RecTarget")
+        upload_csv_for_dataset(driver)
+
+        # 3) Crear datasets extra para forzar paginación (per_page=5 en /recommendations)
+        for i in range(1, 12):  # 11 extra => >=3 páginas (5 por página)
+            extra_id, _ = create_materials_dataset_and_go_to_csv_upload(driver, host, title_suffix=f"RecExtra{i}")
+            upload_csv_for_dataset(driver)
+
+        # 4) Ir a la vista del dataset objetivo
+        driver.get(f"{host}/materials/{target_id}")
+        wait_for_page_to_load(driver)
+
+        # instalar spy ANTES de clicar filtros/paginación
+        install_fetch_spy()
+
+        # wrapper existe
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".recommendations-table-wrapper"))
+        )
+
+        # esperar a que haya recomendaciones iniciales
+        WebDriverWait(driver, 15).until(lambda d: len(d.find_elements(By.CSS_SELECTOR, ".recommendation-row")) > 0)
+        rows = driver.find_elements(By.CSS_SELECTOR, ".recommendation-row")
+        assert rows, "No se renderizaron recomendaciones (.recommendation-row)"
+
+        # 5) Probar filtros (no dependemos de cambio de HTML)
+        click_filter("Tags")
+        click_filter("Authors")
+        click_filter("Properties")
+        click_filter("All")
+
+        # 6) Probar paginación (si hay más de 1 página)
+        # Si no se renderiza paginación, no fallamos: solo significa total_pages==1
+        pag = driver.find_elements(By.CSS_SELECTOR, "ul.pagination")
+        if pag:
+            page_before = get_active_page_number()
+
+            # Next debe avanzar si no está disabled
+            did_next = click_pagination("Next")
+            if did_next:
+                page_after = get_active_page_number()
+                # si el número no está (por cómo renderizas), al menos comprobamos que sigue habiendo rows
+                if page_before is not None and page_after is not None:
+                    assert page_after == page_before + 1, f"Next no avanzó página: {page_before} -> {page_after}"
+
+                # Previous debe volver
+                did_prev = click_pagination("Previous")
+                if did_prev:
+                    page_back = get_active_page_number()
+                    if page_before is not None and page_back is not None:
+                        assert page_back == page_before, f"Previous no volvió página: {page_after} -> {page_back}"
 
     finally:
         close_driver(driver)
