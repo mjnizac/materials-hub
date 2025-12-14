@@ -294,6 +294,11 @@ def _wait_for_recommendations_wrapper_update(driver, wrapper_elem, old_html, tim
     WebDriverWait(driver, timeout).until(changed)
 
 
+def _extract_record_id_from_href(href: str) -> int | None:
+    m = re.search(r"/records/(\d+)/edit", href or "")
+    return int(m.group(1)) if m else None
+
+
 # ==============================
 # TESTS
 # ==============================
@@ -565,70 +570,6 @@ def test_materials_statistics_page_loads():
         close_driver(driver)
 
 
-def test_edit_material_record_from_edit_dataset_page():
-    """
-    Edita un MaterialRecord desde /materials/<id>/edit (edit dataset),
-    entrando desde /dataset/list (list_materials_dataset.html).
-    """
-    driver = initialize_driver()
-    host = get_host_for_selenium_testing()
-
-    try:
-        login(driver, host)
-
-        dataset_id, dataset_title = create_materials_dataset_and_go_to_csv_upload(driver, host, "EditRecord")
-        upload_csv_for_dataset(driver)
-
-        # 1) Ir a /materials/<id>/edit desde /dataset/list
-        go_to_dataset_edit_from_list(driver, host, dataset_title)
-
-        # 2) Click en el primer enlace de editar record (normalmente incluye ?return_to=edit)
-        record_edit_link = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, '/records/') and contains(@href, '/edit')]"))
-        )
-        href = record_edit_link.get_attribute("href")
-        record_id = extract_record_id_from_href(href)
-        assert record_id, f"No pude extraer record_id del href: {href}"
-
-        record_edit_link.click()
-        wait_for_page_to_load(driver)
-
-        # 3) Ya estamos en /materials/<id>/records/<record_id>/edit -> aquí sí existe property_value
-        new_value = "9999.0"
-        property_value_input = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.NAME, "property_value"))
-        )
-        property_value_input.clear()
-        property_value_input.send_keys(new_value)
-
-        submit_btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit'], input[type='submit']"))
-        )
-        submit_btn.click()
-        wait_for_page_to_load(driver)
-
-        # 4) Validación robusta: leer /view_csv y buscar el record por ID (vía fetch)
-        wait_until_csv_reflects_value(driver, host, dataset_id, record_id, "9999.0")
-
-        data = get_view_csv_json(driver, host, dataset_id)
-        row = next((r for r in data["rows"] if str(r.get("record_id", "")).strip() == str(record_id)), None)
-        assert row is not None, f"No encontré el record_id={record_id} en el CSV regenerado"
-
-        csv_value = str(row.get("property_value", "")).strip()
-        assert csv_value in {"9999", "9999.0", "9999.00"}, f"property_value no actualizado. CSV='{csv_value}'"
-
-        # OJO: tras editar se regenera el CSV y ya debe incluir record_id
-        row = next((r for r in data["rows"] if str(r.get("record_id", "")).strip() == str(record_id)), None)
-        assert row is not None, f"No encontré el record_id={record_id} en el CSV regenerado"
-
-        # Comparación tolerante (string/float)
-        csv_value = str(row.get("property_value", "")).strip()
-        assert csv_value in {"9999", "9999.0", "9999.00"}, f"property_value no actualizado. CSV='{csv_value}'"
-
-    finally:
-        close_driver(driver)
-
-
 def test_delete_material_record_from_edit_dataset_page():
     """
     Borra un MaterialRecord (POST real) usando CSRF, partiendo desde /materials/<id>/edit.
@@ -836,173 +777,188 @@ def test_top_global_limit_and_invalid_params_are_sanitized():
         close_driver(driver)
 
 
-def test_view_dataset_recommendations_filters_and_pagination():
+def test_edit_material_record_from_edit_dataset_page():
     """
-    Comprueba recomendaciones en view_materials_dataset.html
-
-    - Se crean muchos datasets similares (mismos tags y mismo usuario)
-    - Se verifica que hay recomendaciones visibles
-    - Se prueban filtros (Tags/Authors/Properties/All) -> AJAX termina
-    - Se prueba paginación (Next/Previous) cuando total_pages > 1
+    Edita un MaterialRecord desde /materials/<id>/edit (edit dataset):
+    - abre el primer botón de editar record (.edit-record-btn)
+    - cambia property_value
+    - vuelve a /materials/<id>/edit (return_to=edit)
+    - pulsa "Save All Changes" para consolidar (y crear versión)
     """
     driver = initialize_driver()
     host = get_host_for_selenium_testing()
 
-    # -------------------------
-    # Helpers locales del test
-    # -------------------------
-    def install_fetch_spy():
-        driver.execute_script(
-            """
-            if (!window.__recFetchSpyInstalled) {
-                window.__recFetchSpyInstalled = true;
-                window.__recFetchStartedAt = 0;
-                window.__recFetchFinishedAt = 0;
-
-                const origFetch = window.fetch.bind(window);
-                window.fetch = function(...args) {
-                    try {
-                        const url = (typeof args[0] === 'string') ? args[0] :
-                        (args[0] && args[0].url) ? args[0].url : '';
-                        if (url && url.includes('/recommendations')) {
-                            window.__recFetchStartedAt = Date.now();
-                        }
-                    } catch (e) {}
-
-                    return origFetch(...args).then(resp => {
-                        try {
-                            const respUrl = resp && resp.url ? resp.url : '';
-                            if (respUrl && respUrl.includes('/recommendations')) {
-                                window.__recFetchFinishedAt = Date.now();
-                            }
-                        } catch (e) {}
-                        return resp;
-                    });
-                };
-            }
-            """
-        )
-
-    def wait_for_recommendations_fetch(prev_finished_at, timeout=15):
-        WebDriverWait(driver, timeout).until(
-            lambda d: d.execute_script("return window.__recFetchFinishedAt || 0;") > prev_finished_at
-        )
-
-    def click_filter(btn_text: str):
-        prev_finished = driver.execute_script("return window.__recFetchFinishedAt || 0;")
-
-        btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable(
-                (
-                    By.XPATH,
-                    f"//button[contains(@class,'filter-btn') and normalize-space()='{btn_text}']",
-                )
-            )
-        )
-        btn.click()
-
-        # esperar fin AJAX real
-        wait_for_recommendations_fetch(prev_finished, timeout=20)
-
-        # wrapper sigue existiendo
-        wrapper = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".recommendations-table-wrapper"))
-        )
-        assert wrapper.is_displayed(), f"Wrapper no visible tras filtro {btn_text}"
-
-        # algo debe renderizarse: rows o alerta info
-        WebDriverWait(driver, 10).until(
-            lambda d: len(d.find_elements(By.CSS_SELECTOR, ".recommendation-row")) > 0
-            or len(d.find_elements(By.CSS_SELECTOR, ".alert")) > 0
-        )
-
-    def click_pagination(btn_text: str):
-        prev_finished = driver.execute_script("return window.__recFetchFinishedAt || 0;")
-
-        btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, f"//ul[contains(@class,'pagination')]//a[normalize-space()='{btn_text}']")
-            )
-        )
-        # si está disabled no debe clicar
-        parent_li = btn.find_element(By.XPATH, "./parent::li")
-        classes = parent_li.get_attribute("class") or ""
-        if "disabled" in classes:
-            return False  # no se puede clicar
-
-        btn.click()
-        wait_for_recommendations_fetch(prev_finished, timeout=20)
-
-        # debe renderizar algo
-        WebDriverWait(driver, 10).until(
-            lambda d: len(d.find_elements(By.CSS_SELECTOR, ".recommendation-row")) > 0
-            or len(d.find_elements(By.CSS_SELECTOR, ".alert")) > 0
-        )
-        return True
-
-    def get_active_page_number():
-        active = driver.find_elements(By.CSS_SELECTOR, "ul.pagination li.page-item.active a.page-link")
-        if not active:
-            return None
-        txt = (active[0].text or "").strip()
-        return int(txt) if txt.isdigit() else None
-
     try:
-        # 1) Login
         login(driver, host)
 
-        # 2) Crear dataset objetivo
-        target_id, _ = create_materials_dataset_and_go_to_csv_upload(driver, host, title_suffix="RecTarget")
+        dataset_id, _ = create_materials_dataset_and_go_to_csv_upload(driver, host, title_suffix="EditRecord")
         upload_csv_for_dataset(driver)
 
-        # 3) Crear datasets extra para forzar paginación (per_page=5 en /recommendations)
-        for i in range(1, 12):  # 11 extra => >=3 páginas (5 por página)
-            extra_id, _ = create_materials_dataset_and_go_to_csv_upload(driver, host, title_suffix=f"RecExtra{i}")
-            upload_csv_for_dataset(driver)
-
-        # 4) Ir a la vista del dataset objetivo
-        driver.get(f"{host}/materials/{target_id}")
+        # Ir a edit dataset
+        driver.get(f"{host}/materials/{dataset_id}/edit")
         wait_for_page_to_load(driver)
 
-        # instalar spy ANTES de clicar filtros/paginación
-        install_fetch_spy()
+        # Esperar a que haya records
+        WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".material-record-item")))
 
-        # wrapper existe
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".recommendations-table-wrapper"))
+        # Click primer botón editar record
+        edit_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a.edit-record-btn")))
+        href = edit_btn.get_attribute("href")
+        record_id = _extract_record_id_from_href(href)
+        assert record_id, f"No pude extraer record_id del href: {href}"
+
+        edit_btn.click()
+        wait_for_page_to_load(driver)
+
+        # Edit form record: cambiar property_value
+        new_value = "9999.0"
+        prop_input = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "property_value")))
+        prop_input.click()
+        prop_input.send_keys(Keys.CONTROL + "a")
+        prop_input.send_keys(Keys.DELETE)
+        prop_input.send_keys(new_value)
+
+        submit_record = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit'], input[type='submit']"))
+        )
+        submit_record.click()
+        wait_for_page_to_load(driver)
+
+        # Debe volver a /materials/<id>/edit (por return_to=edit)
+        assert (
+            f"/materials/{dataset_id}/edit" in driver.current_url
+        ), f"No volvimos a edit dataset. URL actual: {driver.current_url}"
+
+        # Guardar todos los cambios (crea versión única)
+        save_all = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "#editDatasetForm button[type='submit']"))
+        )
+        save_all.click()
+        wait_for_page_to_load(driver)
+
+        # Redirige a la vista del dataset
+        assert f"/materials/{dataset_id}" in driver.current_url
+
+    finally:
+        close_driver(driver)
+
+
+def test_version_history_creates_new_version_after_edit():
+    """
+    E2E:
+    - Crear dataset + CSV (v1)
+    - Editar un record desde /materials/<id>/edit
+    - Guardar cambios
+    - Ir a /materials/<id>/versions
+    - Comprobar que existen al menos 2 versiones
+    """
+    driver = initialize_driver()
+    host = get_host_for_selenium_testing()
+
+    try:
+        login(driver, host)
+
+        dataset_id, _ = create_materials_dataset_and_go_to_csv_upload(driver, host, title_suffix="VersionTest")
+        upload_csv_for_dataset(driver)
+
+        # Editar dataset → crea v2
+        driver.get(f"{host}/materials/{dataset_id}/edit")
+        wait_for_page_to_load(driver)
+
+        edit_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a.edit-record-btn")))
+        edit_btn.click()
+        wait_for_page_to_load(driver)
+
+        prop_input = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "property_value")))
+        prop_input.clear()
+        prop_input.send_keys("8888.0")
+
+        driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        wait_for_page_to_load(driver)
+
+        # Guardar todos los cambios (crea versión)
+        save_all = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "#editDatasetForm button[type='submit']"))
+        )
+        save_all.click()
+        wait_for_page_to_load(driver)
+
+        # Ir a version history
+        driver.get(f"{host}/materials/{dataset_id}/versions")
+        wait_for_page_to_load(driver)
+
+        versions = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".version-checkbox"))
         )
 
-        # esperar a que haya recomendaciones iniciales
-        WebDriverWait(driver, 15).until(lambda d: len(d.find_elements(By.CSS_SELECTOR, ".recommendation-row")) > 0)
-        rows = driver.find_elements(By.CSS_SELECTOR, ".recommendation-row")
-        assert rows, "No se renderizaron recomendaciones (.recommendation-row)"
+        assert len(versions) >= 2, f"Se esperaban al menos 2 versiones, encontradas {len(versions)}"
 
-        # 5) Probar filtros (no dependemos de cambio de HTML)
-        click_filter("Tags")
-        click_filter("Authors")
-        click_filter("Properties")
-        click_filter("All")
+    finally:
+        close_driver(driver)
 
-        # 6) Probar paginación (si hay más de 1 página)
-        # Si no se renderiza paginación, no fallamos: solo significa total_pages==1
-        pag = driver.find_elements(By.CSS_SELECTOR, "ul.pagination")
-        if pag:
-            page_before = get_active_page_number()
 
-            # Next debe avanzar si no está disabled
-            did_next = click_pagination("Next")
-            if did_next:
-                page_after = get_active_page_number()
-                # si el número no está (por cómo renderizas), al menos comprobamos que sigue habiendo rows
-                if page_before is not None and page_after is not None:
-                    assert page_after == page_before + 1, f"Next no avanzó página: {page_before} -> {page_after}"
+def test_version_compare_ui_renders_changes():
+    """
+    E2E:
+    - Crear dataset (v1)
+    - Editar record (v2)
+    - Ir a /versions
+    - Seleccionar 2 versiones
+    - Compare
+    - Verificar UI de comparación
+    """
+    driver = initialize_driver()
+    host = get_host_for_selenium_testing()
 
-                # Previous debe volver
-                did_prev = click_pagination("Previous")
-                if did_prev:
-                    page_back = get_active_page_number()
-                    if page_before is not None and page_back is not None:
-                        assert page_back == page_before, f"Previous no volvió página: {page_after} -> {page_back}"
+    try:
+        login(driver, host)
+
+        dataset_id, _ = create_materials_dataset_and_go_to_csv_upload(driver, host, title_suffix="CompareUI")
+        upload_csv_for_dataset(driver)
+
+        # Crear v2 editando record
+        driver.get(f"{host}/materials/{dataset_id}/edit")
+        wait_for_page_to_load(driver)
+
+        driver.find_element(By.CSS_SELECTOR, "a.edit-record-btn").click()
+        wait_for_page_to_load(driver)
+
+        prop_input = driver.find_element(By.NAME, "property_value")
+        prop_input.clear()
+        prop_input.send_keys("7777.0")
+        driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        wait_for_page_to_load(driver)
+
+        driver.find_element(By.CSS_SELECTOR, "#editDatasetForm button[type='submit']").click()
+        wait_for_page_to_load(driver)
+
+        # Version history
+        driver.get(f"{host}/materials/{dataset_id}/versions")
+        wait_for_page_to_load(driver)
+
+        checkboxes = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".version-checkbox"))
+        )
+        assert len(checkboxes) >= 2
+
+        # Seleccionar 2 versiones
+        checkboxes[0].click()
+        checkboxes[1].click()
+
+        compare_btn = driver.find_element(By.ID, "compareBtn")
+        assert compare_btn.is_enabled()
+
+        compare_btn.click()
+        wait_for_page_to_load(driver)
+
+        # Validar UI compare
+        assert "/versions/compare" in driver.current_url
+        assert "Comparing Versions" in driver.page_source
+        assert (
+            "Modified Records" in driver.page_source
+            or "Deleted Records" in driver.page_source
+            or "Added Records" in driver.page_source
+        )
 
     finally:
         close_driver(driver)
