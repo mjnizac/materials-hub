@@ -1,26 +1,26 @@
 record_id,material_name,chemical_formula,structure_type,composition_method,property_name,property_value,property_unit,temperature,pressure,data_source,uncertainty,description
-4654,Silicon Dioxide,SiO2,Crystalline,Sol-gel synthesis,Band Gap,7777.0,eV,300.0,101325.0,experimental,,High purity silicon dioxide sample
-4655,Silicon Dioxide,SiO2,Crystalline,Sol-gel synthesis,Refractive Index,1.46,,300.0,101325.0,experimental,,Measured at 589nm wavelength
-4656,Silicon Dioxide,SiO2,Crystalline,Sol-gel synthesis,Density,2.65,g/cm³,300.0,101325.0,experimental,,Measured using pycnometry
-4657,Titanium Dioxide,TiO2,Anatase,Chemical vapor deposition,Band Gap,3.2,eV,300.0,101325.0,experimental,,Anatase phase titanium dioxide
-4658,Titanium Dioxide,TiO2,Anatase,Chemical vapor deposition,Refractive Index,2.52,,300.0,101325.0,experimental,,High refractive index material
-4659,Titanium Dioxide,TiO2,Rutile,Hydrothermal synthesis,Band Gap,3.0,eV,300.0,101325.0,experimental,,Rutile phase with lower band gap
-4660,Graphene,C,2D Hexagonal,Chemical exfoliation,Electrical Conductivity,1000000,S/m,300.0,101325.0,experimental,5000.0,Single layer graphene sheet
-4661,Graphene,C,2D Hexagonal,Chemical exfoliation,Thermal Conductivity,5000,W/m·K,300.0,101325.0,literature,100.0,Extremely high thermal conductivity
-4662,Graphene,C,2D Hexagonal,Chemical exfoliation,Young's Modulus,1000,GPa,300.0,101325.0,computational,50.0,DFT calculations
-4663,Gold Nanoparticles,Au,Face-centered cubic,Citrate reduction,Particle Size,20,nm,300.0,101325.0,experimental,2.0,Spherical gold nanoparticles
-4664,Gold Nanoparticles,Au,Face-centered cubic,Citrate reduction,Surface Plasmon Resonance,520,nm,300.0,101325.0,experimental,5.0,Characteristic SPR peak
-4665,Aluminum Oxide,Al2O3,Corundum,Thermal oxidation,Hardness,9.0,Mohs,300.0,101325.0,database,,Second hardest natural mineral
-4666,Aluminum Oxide,Al2O3,Corundum,Thermal oxidation,Melting Point,2345,K,,,database,,Very high melting point
-4667,Aluminum Oxide,Al2O3,Corundum,Thermal oxidation,Density,3.95,g/cm³,300.0,101325.0,database,,High density ceramic
-4668,Perovskite,CH3NH3PbI3,Tetragonal,Solution processing,Band Gap,1.55,eV,300.0,101325.0,experimental,,Hybrid organic-inorganic perovskite
-4669,Perovskite,CH3NH3PbI3,Tetragonal,Solution processing,Power Conversion Efficiency,22.5,%,300.0,101325.0,experimental,,Solar cell performance
-4670,Silicon Carbide,SiC,Hexagonal,Chemical vapor deposition,Band Gap,3.26,eV,300.0,101325.0,experimental,,Wide bandgap semiconductor
-4671,Silicon Carbide,SiC,Hexagonal,Chemical vapor deposition,Thermal Conductivity,490,W/m·K,300.0,101325.0,literature,10.0,Excellent thermal conductor
-4672,Silicon Carbide,SiC,Hexagonal,Chemical vapor deposition,Hardness,9.5,Mohs,300.0,101325.0,database,,Very hard material
-4673,Zinc Oxide,ZnO,Wurtzite,Hydrothermal synthesis,Band Gap,3.37,eV,300.0,101325.0,experimental,,Direct bandgap semiconductor
-4674,Zinc Oxide,ZnO,Wurtzite,Hydrothermal synthesis,Piezoelectric Coefficient,12.4,pC/N,300.0,101325.0,experimental,,Piezoelectric material
-4675,Copper,Cu,Face-centered cubic,Electrodeposition,Electrical Conductivity,59600000,S/m,300.0,101325.0,database,,Pure copper conductor
-4676,Copper,Cu,Face-centered cubic,Electrodeposition,Thermal Conductivity,401,W/m·K,300.0,101325.0,database,,Excellent heat conductor
-4677,Iron Oxide,Fe2O3,Hematite,Precipitation,Magnetic Susceptibility,3.5e-3,,300.0,101325.0,experimental,,Paramagnetic at room temperature
-4678,Iron Oxide,Fe2O3,Hematite,Precipitation,Particle Size,50,nm,300.0,101325.0,experimental,5.0,Nanoparticle form
+4904,Silicon Dioxide,SiO2,Crystalline,Sol-gel synthesis,Band Gap,7777.0,eV,300.0,101325.0,experimental,,High purity silicon dioxide sample
+4905,Silicon Dioxide,SiO2,Crystalline,Sol-gel synthesis,Refractive Index,1.46,,300.0,101325.0,experimental,,Measured at 589nm wavelength
+4906,Silicon Dioxide,SiO2,Crystalline,Sol-gel synthesis,Density,2.65,g/cm³,300.0,101325.0,experimental,,Measured using pycnometry
+4907,Titanium Dioxide,TiO2,Anatase,Chemical vapor deposition,Band Gap,3.2,eV,300.0,101325.0,experimental,,Anatase phase titanium dioxide
+4908,Titanium Dioxide,TiO2,Anatase,Chemical vapor deposition,Refractive Index,2.52,,300.0,101325.0,experimental,,High refractive index material
+4909,Titanium Dioxide,TiO2,Rutile,Hydrothermal synthesis,Band Gap,3.0,eV,300.0,101325.0,experimental,,Rutile phase with lower band gap
+4910,Graphene,C,2D Hexagonal,Chemical exfoliation,Electrical Conductivity,1000000,S/m,300.0,101325.0,experimental,5000.0,Single layer graphene sheet
+4911,Graphene,C,2D Hexagonal,Chemical exfoliation,Thermal Conductivity,5000,W/m·K,300.0,101325.0,literature,100.0,Extremely high thermal conductivity
+4912,Graphene,C,2D Hexagonal,Chemical exfoliation,Young's Modulus,1000,GPa,300.0,101325.0,computational,50.0,DFT calculations
+4913,Gold Nanoparticles,Au,Face-centered cubic,Citrate reduction,Particle Size,20,nm,300.0,101325.0,experimental,2.0,Spherical gold nanoparticles
+4914,Gold Nanoparticles,Au,Face-centered cubic,Citrate reduction,Surface Plasmon Resonance,520,nm,300.0,101325.0,experimental,5.0,Characteristic SPR peak
+4915,Aluminum Oxide,Al2O3,Corundum,Thermal oxidation,Hardness,9.0,Mohs,300.0,101325.0,database,,Second hardest natural mineral
+4916,Aluminum Oxide,Al2O3,Corundum,Thermal oxidation,Melting Point,2345,K,,,database,,Very high melting point
+4917,Aluminum Oxide,Al2O3,Corundum,Thermal oxidation,Density,3.95,g/cm³,300.0,101325.0,database,,High density ceramic
+4918,Perovskite,CH3NH3PbI3,Tetragonal,Solution processing,Band Gap,1.55,eV,300.0,101325.0,experimental,,Hybrid organic-inorganic perovskite
+4919,Perovskite,CH3NH3PbI3,Tetragonal,Solution processing,Power Conversion Efficiency,22.5,%,300.0,101325.0,experimental,,Solar cell performance
+4920,Silicon Carbide,SiC,Hexagonal,Chemical vapor deposition,Band Gap,3.26,eV,300.0,101325.0,experimental,,Wide bandgap semiconductor
+4921,Silicon Carbide,SiC,Hexagonal,Chemical vapor deposition,Thermal Conductivity,490,W/m·K,300.0,101325.0,literature,10.0,Excellent thermal conductor
+4922,Silicon Carbide,SiC,Hexagonal,Chemical vapor deposition,Hardness,9.5,Mohs,300.0,101325.0,database,,Very hard material
+4923,Zinc Oxide,ZnO,Wurtzite,Hydrothermal synthesis,Band Gap,3.37,eV,300.0,101325.0,experimental,,Direct bandgap semiconductor
+4924,Zinc Oxide,ZnO,Wurtzite,Hydrothermal synthesis,Piezoelectric Coefficient,12.4,pC/N,300.0,101325.0,experimental,,Piezoelectric material
+4925,Copper,Cu,Face-centered cubic,Electrodeposition,Electrical Conductivity,59600000,S/m,300.0,101325.0,database,,Pure copper conductor
+4926,Copper,Cu,Face-centered cubic,Electrodeposition,Thermal Conductivity,401,W/m·K,300.0,101325.0,database,,Excellent heat conductor
+4927,Iron Oxide,Fe2O3,Hematite,Precipitation,Magnetic Susceptibility,3.5e-3,,300.0,101325.0,experimental,,Paramagnetic at room temperature
+4928,Iron Oxide,Fe2O3,Hematite,Precipitation,Particle Size,50,nm,300.0,101325.0,experimental,5.0,Nanoparticle form
