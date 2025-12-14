@@ -682,9 +682,9 @@ def test_top_global_page_loads_and_metric_toggle():
     """
     1) Login
     2) Ir a /datasets/top (por defecto downloads)
-    3) Verificar que hay tabla o mensaje "No datasets found."
-    4) Cambiar a 'views' y comprobar que la cabecera cambia a Views (si hay tabla)
-    5) Volver a 'downloads' y comprobar cabecera Downloads (si hay tabla)
+    3) Verificar que hay cards o mensaje "No datasets found."
+    4) Cambiar a 'views' y comprobar que el texto muestra "views" o el botón View dataset
+    5) Volver a 'downloads' y comprobar que el texto muestra "downloads" o el botón Download CSV
     """
     driver = initialize_driver()
     host = get_host_for_selenium_testing()
@@ -695,13 +695,14 @@ def test_top_global_page_loads_and_metric_toggle():
         driver.get(f"{host}/datasets/top")
         wait_for_page_to_load(driver)
 
-        body_text = driver.find_element(By.TAG_NAME, "body").text
+        body = driver.find_element(By.TAG_NAME, "body")
+        body_text = body.text
         assert "Top" in body_text, "No parece la página de Top datasets"
 
-        # Tabla o placeholder
-        has_table = len(driver.find_elements(By.TAG_NAME, "table")) > 0
+        # Cards o placeholder
+        cards = driver.find_elements(By.CSS_SELECTOR, ".card.shadow-sm.w-100")
         has_empty = "No datasets found" in body_text
-        assert has_table or has_empty, "No hay tabla ni mensaje de 'No datasets found.'"
+        assert cards or has_empty, "No hay cards ni mensaje de 'No datasets found.'"
 
         # Cambiar a Most viewed
         viewed_btn = WebDriverWait(driver, 10).until(
@@ -710,10 +711,16 @@ def test_top_global_page_loads_and_metric_toggle():
         viewed_btn.click()
         wait_for_page_to_load(driver)
 
-        if len(driver.find_elements(By.TAG_NAME, "table")) > 0:
-            ths = driver.find_elements(By.CSS_SELECTOR, "table thead th")
-            headers = [th.text.strip() for th in ths]
-            assert "Views" in headers, f"Cabeceras inesperadas en modo views: {headers}"
+        body_text = driver.find_element(By.TAG_NAME, "body").text
+        cards = driver.find_elements(By.CSS_SELECTOR, ".card.shadow-sm.w-100")
+        has_empty = "No datasets found" in body_text
+        assert cards or has_empty, "En modo views no hay cards ni mensaje de 'No datasets found.'"
+
+        if cards:
+            # En modo views las cards muestran "views" y/o botón "View dataset"
+            assert ("views" in body_text.lower()) or (
+                "View dataset" in body_text
+            ), "No parece que estemos en modo views (no aparece 'views' ni 'View dataset')."
 
         # Volver a Most downloaded
         downloads_btn = WebDriverWait(driver, 10).until(
@@ -722,10 +729,16 @@ def test_top_global_page_loads_and_metric_toggle():
         downloads_btn.click()
         wait_for_page_to_load(driver)
 
-        if len(driver.find_elements(By.TAG_NAME, "table")) > 0:
-            ths = driver.find_elements(By.CSS_SELECTOR, "table thead th")
-            headers = [th.text.strip() for th in ths]
-            assert "Downloads" in headers, f"Cabeceras inesperadas en modo downloads: {headers}"
+        body_text = driver.find_element(By.TAG_NAME, "body").text
+        cards = driver.find_elements(By.CSS_SELECTOR, ".card.shadow-sm.w-100")
+        has_empty = "No datasets found" in body_text
+        assert cards or has_empty, "En modo downloads no hay cards ni mensaje de 'No datasets found.'"
+
+        if cards:
+            # En modo downloads las cards muestran "downloads" y/o botón "Download CSV"
+            assert ("downloads" in body_text.lower()) or (
+                "Download CSV" in body_text
+            ), "No parece que estemos en modo downloads (no aparece 'downloads' ni 'Download CSV')."
 
     finally:
         close_driver(driver)
@@ -734,8 +747,8 @@ def test_top_global_page_loads_and_metric_toggle():
 def test_top_global_limit_and_invalid_params_are_sanitized():
     """
     1) Login
-    2) Ir con limit=3 y comprobar filas <= 3 (si hay tabla)
-    3) Ir con metric inválido y comprobar que vuelve a Downloads (si hay tabla)
+    2) Ir con limit=3 y comprobar cards <= 3 (si hay resultados)
+    3) Ir con metric inválido y comprobar que cae a downloads (si hay resultados)
     4) Ir con days inválido y comprobar que la página carga (no rompe)
     """
     driver = initialize_driver()
@@ -744,29 +757,34 @@ def test_top_global_limit_and_invalid_params_are_sanitized():
     try:
         login(driver, host)
 
-        # 2) limit=3, days=7
+        # 2) limit=3
         driver.get(f"{host}/datasets/top?metric=downloads&days=7&limit=3")
         wait_for_page_to_load(driver)
 
         body_text = driver.find_element(By.TAG_NAME, "body").text
-        has_table = len(driver.find_elements(By.TAG_NAME, "table")) > 0
+        cards = driver.find_elements(By.CSS_SELECTOR, ".card.shadow-sm.w-100")
         has_empty = "No datasets found" in body_text
-        assert has_table or has_empty, "No hay tabla ni mensaje de 'No datasets found.'"
+        assert cards or has_empty, "No hay cards ni mensaje de 'No datasets found.'"
 
-        if has_table:
-            rows = driver.find_elements(By.CSS_SELECTOR, "table tbody tr")
-            assert len(rows) <= 3, f"Esperaba <=3 filas, pero hay {len(rows)}"
+        if cards:
+            assert len(cards) <= 3, f"Esperaba <= 3 cards, pero hay {len(cards)}"
 
-        # 3) metric inválido -> debe sanearse a downloads
+        # 3) metric inválido -> debería sanearse a downloads
         driver.get(f"{host}/datasets/top?metric=INVALID&days=7&limit=5")
         wait_for_page_to_load(driver)
 
-        if len(driver.find_elements(By.TAG_NAME, "table")) > 0:
-            ths = driver.find_elements(By.CSS_SELECTOR, "table thead th")
-            headers = [th.text.strip() for th in ths]
-            assert "Downloads" in headers, f"metric inválido no se saneó a downloads. Cabeceras: {headers}"
+        body_text = driver.find_element(By.TAG_NAME, "body").text
+        cards = driver.find_elements(By.CSS_SELECTOR, ".card.shadow-sm.w-100")
+        has_empty = "No datasets found" in body_text
+        assert cards or has_empty, "No hay cards ni mensaje de 'No datasets found.' con metric inválido"
 
-        # 4) days inválido -> debe sanearse a 30 (no se ve directo, pero no debe romper)
+        if cards:
+            # Si se sanea a downloads, debería aparecer "downloads" o el botón "Download CSV"
+            assert ("downloads" in body_text.lower()) or (
+                "Download CSV" in body_text
+            ), f"metric inválido no parece saneado a downloads. Texto: {body_text[:2000]}"
+
+        # 4) days inválido -> no debe romper
         driver.get(f"{host}/datasets/top?metric=downloads&days=999&limit=5")
         wait_for_page_to_load(driver)
 
